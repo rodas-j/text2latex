@@ -1,6 +1,7 @@
 import { Button } from "ui";
 import Hero from "../components/hero/Hero";
 import { useEffect, useState } from "react";
+import Head from "next/head";
 
 async function transcribe(text: string) {
   let requestOptions = {
@@ -27,7 +28,14 @@ export default function Web() {
 
   return (
     <>
+      <Head>
+        <link rel="icon" href="/image/favicon.ico" />
+      </Head>
       <div className="flex h-screen justify-center items-center">
+        <div className="m-4">
+          <Hero />
+        </div>
+
         <div className="flex-col justify-between min-w-lg">
           <textarea
             value={text}
@@ -47,7 +55,6 @@ export default function Web() {
           </button>
 
           <textarea
-            value={latex}
             placeholder="Latex will appear here..."
             className="textarea textarea-bordered textarea-md h-44 w-full"
           ></textarea>

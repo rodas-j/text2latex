@@ -47,6 +47,7 @@ importers:
   apps/web:
     specifiers:
       '@babel/core': ^7.0.0
+      '@next/font': ^13.1.6
       '@types/node': ^17.0.12
       '@types/react': ^18.0.22
       '@types/react-dom': ^18.0.7
@@ -54,6 +55,7 @@ importers:
       daisyui: ^2.49.0
       eslint: 7.32.0
       eslint-config-custom: workspace:*
+      google: link:@next/font/google
       next: ^13.1.1
       openai: ^3.1.0
       postcss: ^8.4.21
@@ -64,7 +66,9 @@ importers:
       typescript: ^4.5.3
       ui: workspace:*
     dependencies:
+      '@next/font': 13.1.6
       daisyui: 2.49.0_gbtt6ss3tbiz4yjtvdr6fbrj44
+      google: link:@next/font/google
       next: 13.1.6_pjwopsidmaokadturxaafygjp4
       openai: 3.1.0
       react: 18.2.0
@@ -384,6 +388,10 @@ packages:
     resolution: {integrity: sha512-z+gnX4Zizatqatc6f4CQrcC9oN8Us3Vrq/OLyc98h7K/eWctrnV91zFZodmJHUjx0cITY8uYM7LXD7IdYkg3kg==}
     dependencies:
       glob: 7.1.7
+    dev: false
+
+  /@next/font/13.1.6:
+    resolution: {integrity: sha512-AITjmeb1RgX1HKMCiA39ztx2mxeAyxl4ljv2UoSBUGAbFFMg8MO7YAvjHCgFhD39hL7YTbFjol04e/BPBH5RzQ==}
     dev: false
 
   /@next/swc-android-arm-eabi/13.1.6:

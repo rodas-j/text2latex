@@ -4,18 +4,18 @@ type Props = {};
 
 export default function Hero(props: Props) {
   return (
-    <div className="hero min-h-screen bg-base-200">
-      <div className="hero-content text-center">
-        <div className="max-w-md">
-          <h1 className="text-5xl font-bold">Hello there</h1>
-          <p className="py-6">
-            Provident cupiditate voluptatem et in. Quaerat fugiat ut assumenda
-            excepturi exercitationem quasi. In deleniti eaque aut repudiandae et
-            a id nisi.
-          </p>
-          <button className="btn btn-primary">Get Started</button>
-        </div>
-      </div>
+    <div className="flex flex-col  font-sans">
+      <h1 className="font-light text-7xl my-4">Text2Latex</h1>
+      <p className="max-w-lg font-light">
+        {" "}
+        Welcome to Text2Latex! We are excited to offer you a fast and easy way
+        to transcribe normal text to LaTeX. With our user-friendly interface,
+        you can quickly convert any text into a beautifully formatted LaTeX
+        document. Whether you&apos;re a student, researcher, or professional,
+        our tool is perfect for anyone who needs to write complex mathematical
+        equations or technical documents. Thank you for choosing us, and happy
+        transcribing!
+      </p>
     </div>
   );
 }
