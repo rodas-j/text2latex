@@ -55,6 +55,7 @@ export default function Web() {
           </button>
 
           <textarea
+            value={latex}
             placeholder="Latex will appear here..."
             className="textarea textarea-bordered textarea-md h-44 w-full"
           ></textarea>
