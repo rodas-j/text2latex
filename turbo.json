@@ -10,6 +10,9 @@
     },
     "dev": {
       "cache": false
+    },
+    "deploy": {
+      "dependsOn": ["^build", "OPENAI_API_KEY"]
     }
   }
 }
