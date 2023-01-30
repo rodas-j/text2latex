@@ -16,11 +16,17 @@ async function transcribe(text: string) {
 }
 
 export default function Web() {
+  const [isTextLong, setIsTextLong] = useState(false);
   const [text, setText] = useState("");
   const [latex, setLatex] = useState("");
   const [loading, setLoading] = useState(false);
   const handleTranscribe = async () => {
     setLoading(true);
+    if (text.length > 1000) {
+      setIsTextLong(true);
+      setLoading(false);
+      return;
+    }
     const response = await transcribe(text);
     setLatex(response.data);
     setLoading(false);
@@ -31,17 +37,20 @@ export default function Web() {
       <Head>
         <link rel="icon" href="/image/favicon.ico" />
       </Head>
-      <div className="flex h-screen justify-center items-center">
+      <div className="flex lg:h-screen flex-col justify-center items-center">
         <div className="m-4">
           <Hero />
         </div>
+        <p className="text-rose-600"> {isTextLong && "Text is too long"} </p>
 
-        <div className="flex-col justify-between min-w-lg">
+        <div className="flex-col  justify-between min-w-lg">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Write normal text here..."
-            className="textarea textarea-bordered textarea-md h-44 w-full"
+            className={`textarea textarea-bordered textarea-md h-44 w-full ${
+              isTextLong && "textarea-error"
+            } `}
           ></textarea>
 
           <button onClick={handleTranscribe} className="btn btn-outlinel my-4">
