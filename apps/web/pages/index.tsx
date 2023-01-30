@@ -37,13 +37,13 @@ export default function Web() {
       <Head>
         <link rel="icon" href="/image/favicon.ico" />
       </Head>
-      <div className="flex lg:h-screen flex-col justify-center items-center">
-        <div className="m-4">
+      <div className="flex h-screen p-5 flex-col justify-center items-center m-4">
+        <div className="m-6">
           <Hero />
         </div>
         <p className="text-rose-600"> {isTextLong && "Text is too long"} </p>
 
-        <div className="flex-col  justify-between min-w-lg">
+        <div className="flex-col  justify-between min-w-lg p-5">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
