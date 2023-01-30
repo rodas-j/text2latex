@@ -37,8 +37,8 @@ export default function Web() {
       <Head>
         <link rel="icon" href="/image/favicon.ico" />
       </Head>
-      <div className="flex h-screen p-5 flex-col justify-center items-center m-4">
-        <div className="m-6">
+      <div className="flex p-5 flex-col justify-center items-center m-4">
+        <div className="top-5">
           <Hero />
         </div>
         <p className="text-rose-600"> {isTextLong && "Text is too long"} </p>
@@ -48,7 +48,7 @@ export default function Web() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Write normal text here..."
-            className={`textarea textarea-bordered textarea-md h-44 w-full ${
+            className={`textarea textarea-bordered textarea-md h-44 w-full min-w-lg ${
               isTextLong && "textarea-error"
             } `}
           ></textarea>
@@ -66,7 +66,7 @@ export default function Web() {
           <textarea
             value={latex}
             placeholder="Latex will appear here..."
-            className="textarea textarea-bordered textarea-md h-44 w-full"
+            className="textarea textarea-bordered textarea-md h-44 w-full min-w-lg"
           ></textarea>
         </div>
       </div>
