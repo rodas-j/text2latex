@@ -34,7 +34,7 @@ export default function Web() {
       const data = await response.json();
       return data;
     } catch (err) {
-      switch (err.cause.status) {
+      switch ((err as any).cause.status) {
         case 500:
           setErrorText("Something went wrong!");
           break;
@@ -89,6 +89,7 @@ export default function Web() {
 
           <textarea
             value={latex}
+            readOnly
             placeholder="Latex will appear here... \lim_{n\to\infty}\frac{n2^n}{3^n}"
             className="textarea textarea-bordered textarea-md h-44 w-full min-w-lg  disabled"
           ></textarea>
