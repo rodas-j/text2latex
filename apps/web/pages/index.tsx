@@ -1,11 +1,13 @@
 import { Button } from "ui";
 import Hero from "../components/hero/Hero";
 import { useEffect, useState } from "react";
+
 import Head from "next/head";
 import NavBar from "../components/navbar/NavBar";
 import Footer from "../components/footer/Footer";
 
 export default function Web() {
+  const [copied, setCopied] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [isTextLong, setIsTextLong] = useState(false);
   const [text, setText] = useState("");
@@ -54,10 +56,39 @@ export default function Web() {
     setLoading(false);
   };
 
+  const defaults = {
+    title: "Text2Latex",
+    description:
+      "Text2Latex is an AI-powered tool that transcribes normal text to LaTeX.",
+    image: "og.png",
+    url: "https://text2latex.com/",
+  };
+
   return (
     <>
       <Head>
         <link rel="icon" href="/image/favicon.ico" />
+        <title>{defaults.title}</title>
+        <meta name="description" content={defaults.description} />
+
+        {/*<!-- Google / Search Engine Tags -->*/}
+        <meta itemProp="name" content={defaults.title} />
+        <meta itemProp="description" content={defaults.description} />
+        <meta itemProp="image" content={defaults.image} />
+        <meta name="thumbnail" content={defaults.image} />
+
+        {/*<!-- Facebook Meta Tags -->*/}
+        <meta property="og:title" content={defaults.title} />
+        <meta property="og:description" content={defaults.description} />
+        <meta property="og:image" content={defaults.image} />
+        <meta property="og:url" content={defaults.url} />
+        <meta property="og:type" content="website" />
+
+        {/*<!-- Twitter Meta Tags -->*/}
+        <meta name="twitter:title" content={defaults.title} />
+        <meta name="twitter:description" content={defaults.description} />
+        <meta name="twitter:image" content={defaults.image} />
+        <meta name="twitter:card" content="summary_large_image" />
       </Head>
       <NavBar />
       <div className="flex p-5 flex-col justify-center items-center m-4">
@@ -72,12 +103,15 @@ export default function Web() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Write normal text here... lim n->inf (n*2^n/3^n)"
-            className={`textarea textarea-bordered textarea-md h-44 w-full min-w-lg ${
+            className={`textarea textarea-bordered textarea-md h-44 w-full min-w-lg border-2 rounded-none focus:outline-none focus:border-black  ${
               isTextLong && "textarea-error"
             } `}
           ></textarea>
 
-          <button onClick={handleTranscribe} className="btn btn-outlinel my-4">
+          <button
+            onClick={handleTranscribe}
+            className="btn btn-outlinel bg-black my-4"
+          >
             {loading && (
               <svg
                 className="bg-white animate-spin h-4 w-4 mr-3 ..."
@@ -90,9 +124,25 @@ export default function Web() {
           <textarea
             value={latex}
             readOnly
+            onClick={() => {
+              navigator.clipboard.writeText(latex);
+              if (!copied) {
+                setCopied(true);
+                setTimeout(() => {
+                  setCopied(false);
+                }, 2000);
+              }
+            }}
             placeholder="Latex will appear here... \lim_{n\to\infty}\frac{n2^n}{3^n}"
-            className="textarea textarea-bordered textarea-md h-44 w-full min-w-lg  disabled"
+            className="textarea textarea-bordered textarea-md h-44 w-full min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy"
           ></textarea>
+          {copied && (
+            <div className="alert alert-success">
+              <div>
+                <span>Copied to Clipboard.</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <Footer />
