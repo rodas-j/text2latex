@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import applyRateLimit from "./rateLimiting";
 
 const { Configuration, OpenAIApi } = require("openai");
 
@@ -8,6 +9,12 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
+  try {
+    await applyRateLimit(req, res);
+  } catch {
+    res.status(429).json({ error: "Too many requests" });
+    return;
+  }
   const prompt = req.query.prompt;
 
   if (!prompt) {
@@ -21,7 +28,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const PREFACE = `Turn the following into latex:`;
   const SUFFIX = "OUTPUT:\n";
   const fullPrompt = PREFACE + "\n" + prompt + "\n" + SUFFIX;
-  console.log(prompt);
+
   const response = await openai.createCompletion({
     model: "text-davinci-003",
     prompt: fullPrompt,

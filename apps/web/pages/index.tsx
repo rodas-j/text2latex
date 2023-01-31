@@ -44,11 +44,11 @@ export default function Web() {
 
   const handleTranscribe = async () => {
     setLoading(true);
-    // if (text.length > 1000) {
-    //   setIsTextLong(true);
-    //   setLoading(false);
-    //   return;
-    // }
+    if (text.length > 1000) {
+      setIsTextLong(true);
+      setLoading(false);
+      return;
+    }
     const response = await transcribe(text);
     setLatex(response ? response.data : "");
     setLoading(false);
