@@ -4,7 +4,7 @@ type Props = {};
 
 export default function Hero(props: Props) {
   return (
-    <div className=" flex-col  font-sans">
+    <div className=" flex-col hero-content  font-sans">
       <h1 className="font-light text-7xl my-4">Text2Latex</h1>
       <p className="max-w-lg font-light">
         {" "}
