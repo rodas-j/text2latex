@@ -8,8 +8,17 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const PREFACE = `Turn the following into latex:`;
   const prompt = req.query.prompt;
+
+  if (!prompt) {
+    res.status(400).json({ error: "Missing prompt" });
+  } else if (typeof prompt !== "string") {
+    res.status(400).json({ error: "Prompt must be a string" });
+  } else if (prompt.length > 1000) {
+    res.status(400).json({ error: "Prompt must be less than 1000 characters" });
+  }
+
+  const PREFACE = `Turn the following into latex:`;
   const SUFFIX = "OUTPUT:\n";
   const fullPrompt = PREFACE + "\n" + prompt + "\n" + SUFFIX;
   console.log(prompt);
