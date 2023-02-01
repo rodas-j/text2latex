@@ -15,15 +15,20 @@ export default function Web() {
   const [loading, setLoading] = useState(false);
 
   async function transcribe(text: string) {
+    let myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/json");
+    var raw = JSON.stringify({
+      prompt: text,
+    });
     let requestOptions = {
-      method: "GET",
+      method: "POST",
+      headers: myHeaders,
+      body: raw,
       redirect: "follow",
     };
     try {
-      const response = await fetch(
-        `/api?prompt=${text}`,
-        requestOptions as RequestInit
-      );
+      const response = await fetch("/api", requestOptions as RequestInit);
+      console.log(response);
 
       if (!response.ok) {
         const data = await response.json();
@@ -36,21 +41,28 @@ export default function Web() {
       const data = await response.json();
       return data;
     } catch (err) {
-      switch ((err as any).cause.status) {
-        case 500:
-          setErrorText("Something went wrong!");
-          break;
-      }
+      setErrorText("Something went wrong!");
+      console.log(err);
     }
   }
+  const exampleInput = `limit n->0 (5^n/n^2)`;
+  const example2Input = `sum from 1 to n of n/2`;
+  const example3Input = `integral of x^2 + 2x + 1 from 0 to 1`;
+
+  const exampleOutput = `\\lim_{n\\to 0} \\frac{5^n}{n^2}`;
+  const example2Output = `\\sum_{n=1}^n \\frac{n}{2}`;
+  const example3Output = "\\int_{0}^{1} (x^2 + 2x + 1) , dx";
 
   const handleTranscribe = async () => {
+    console.log("transcribing");
     setLoading(true);
     if (text.length > 1000) {
+      console.log("text is too long");
       setIsTextLong(true);
       setLoading(false);
       return;
     }
+
     const response = await transcribe(text);
     setLatex(response ? response.data : "");
     setLoading(false);
@@ -102,7 +114,7 @@ export default function Web() {
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Write normal text here... lim n->inf (n*2^n/3^n)"
+            placeholder={`Write normal text here... \n ${exampleInput} \n ${example2Input} \n ${example3Input}`}
             className={`textarea textarea-bordered textarea-md h-44 w-full min-w-lg border-2 rounded-none focus:outline-none focus:border-black  ${
               isTextLong && "textarea-error"
             } `}
@@ -133,7 +145,7 @@ export default function Web() {
                 }, 2000);
               }
             }}
-            placeholder="Latex will appear here... \lim_{n\to\infty}\frac{n2^n}{3^n}"
+            placeholder={`Latex will appear here... \n ${exampleOutput} \n ${example2Output} \n ${example3Output}`}
             className="textarea textarea-bordered textarea-md h-44 w-full min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy"
           ></textarea>
           {copied && (

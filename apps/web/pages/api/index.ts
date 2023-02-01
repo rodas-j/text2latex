@@ -15,7 +15,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     res.status(429).json({ error: "Too many requests" });
     return;
   }
-  const prompt = req.query.prompt;
+
+  const prompt = req.body.prompt;
+  console.log("prompt", prompt);
 
   if (!prompt) {
     res.status(400).json({ error: "Missing prompt" });
