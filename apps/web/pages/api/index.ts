@@ -3,8 +3,10 @@ import applyRateLimit from "./rateLimiting";
 
 const { Configuration, OpenAIApi } = require("openai");
 
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
 const configuration = new Configuration({
-  apiKey: "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",
+  apiKey: OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
 
@@ -21,10 +23,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   if (!prompt) {
     res.status(400).json({ error: "Missing prompt" });
+    return;
   } else if (typeof prompt !== "string") {
     res.status(400).json({ error: "Prompt must be a string" });
+    return;
   } else if (prompt.length > 1000) {
     res.status(400).json({ error: "Prompt must be less than 1000 characters" });
+    return;
   }
 
   const PREFACE = `Turn the following into latex:`;

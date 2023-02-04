@@ -71,7 +71,7 @@ export default function Web() {
   const defaults = {
     title: "Text2Latex",
     description:
-      "Text2Latex is an AI-powered tool that transcribes normal text to LaTeX.",
+      "Text2Latex is an AI-powered tool that transcribes natural language to LaTeX.",
     image: "og.png",
     url: "https://text2latex.com/",
   };
