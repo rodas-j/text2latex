@@ -1,5 +1,5 @@
 
-# Turborepo
+# Text2Latex
 A NextJS web application that uses OpenAI's GPT-3 model to transcribe any type of input into LaTeX output. The AI-powered text-to-LaTeX transcription tool is designed to transform unstructured data into well-formatted LaTeX output, making it easier for users to create academic or technical documents.
 
 ## Prerequisites
