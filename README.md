@@ -1,10 +1,54 @@
-# Turborepo starter
 
-This is an official pnpm starter turborepo.
+# Turborepo
+A NextJS web application that uses OpenAI's GPT-3 model to transcribe any type of input into LaTeX output. The AI-powered text-to-LaTeX transcription tool is designed to transform unstructured data into well-formatted LaTeX output, making it easier for users to create academic or technical documents.
 
-## What's inside?
+## Prerequisites
+Before you begin, make sure you have the following tools installed on your computer:
 
-This turborepo uses [pnpm](https://pnpm.io) as a package manager. It includes the following packages/apps:
+Node.js
+Turbo
+NPM
+NextJS
+OpenAI API Key
+Installation
+To install the dependencies, follow these steps:
+
+## Clone the repository:
+```bash
+git clone https://github.com/rodas-j/turborepo.git
+```
+
+Install the dependencies:
+```bash
+npm install
+```
+Usage
+To start the development server, run the following command:
+
+```bash
+npm run dev --filter web
+```
+The web application will be available at http://localhost:3000 in your web browser.
+
+## Configuration
+The application uses OpenAI's GPT-3 model for text-to-LaTeX transcription. To use the model, you will need an OpenAI API key. You can obtain an API key by signing up for an OpenAI account here.
+
+Once you have obtained an API key, create a .env file in the root of the project and add the following line:
+
+
+```.env
+OPENAI_API_KEY=<your_api_key>
+```
+## Contributing
+We welcome contributions to the project. If you would like to contribute, please follow these steps:
+
+Fork the repository
+Create a new branch for your feature or bug fix
+Commit your changes
+Open a pull request against the develop branch
+## License
+This project is licensed under the MIT License.
+
 
 ### Apps and Packages
 
