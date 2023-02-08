@@ -15,12 +15,16 @@ To install the dependencies, follow these steps:
 
 ## Clone the repository:
 ```bash
-git clone https://github.com/rodas-j/turborepo.git
+git clone https://github.com/rodas-j/text2latex.git
 ```
 
 Install the dependencies:
 ```bash
 npm install
+```
+or
+```bash
+pnpm install
 ```
 Usage
 To start the development server, run the following command:
