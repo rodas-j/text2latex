@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import NavBar from "../components/navbar/NavBar";
 import Footer from "../components/footer/Footer";
+import ThemeToggle from "../components/themeToggle/themeToggle";
 
 export default function Web() {
   const [copied, setCopied] = useState(false);
@@ -13,6 +14,8 @@ export default function Web() {
   const [text, setText] = useState("");
   const [latex, setLatex] = useState("");
   const [loading, setLoading] = useState(false);
+
+
 
   async function transcribe(text: string) {
     let myHeaders = new Headers();
@@ -78,7 +81,7 @@ export default function Web() {
 
   return (
     <>
-      <Head>
+      < Head >
         <link rel="icon" href="/image/favicon.ico" />
         <title>{defaults.title}</title>
         <meta name="description" content={defaults.description} />
@@ -101,9 +104,9 @@ export default function Web() {
         <meta name="twitter:description" content={defaults.description} />
         <meta name="twitter:image" content={defaults.image} />
         <meta name="twitter:card" content="summary_large_image" />
-      </Head>
+      </Head >
       <NavBar />
-      <div className="flex p-5 flex-col justify-center items-center m-4">
+      <div className="flex p-5 flex-col justify-center items-center m-3">
         <div className="top-5">
           <Hero />
         </div>
@@ -115,18 +118,17 @@ export default function Web() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={`Write normal text here... \n ${exampleInput} \n ${example2Input} \n ${example3Input}`}
-            className={`textarea textarea-bordered textarea-md h-44 w-full min-w-lg border-2 rounded-none focus:outline-none focus:border-black  ${
-              isTextLong && "textarea-error"
-            } `}
+            className={`textarea textarea-bordered textarea-md h-44 w-full min-w-lg border-2 rounded-none focus:outline-none focus:border-black dark:text-gray-light dark:focus:border-gray-light dark:bg-gray-medium ${isTextLong && "textarea-error"
+              } `}
           ></textarea>
 
           <button
             onClick={handleTranscribe}
-            className="btn btn-outlinel bg-black my-4"
+            className="btn btn-outlinel bg-black my-4 dark:bg-gray-medium dark:text-gray-light"
           >
             {loading && (
               <svg
-                className="bg-white animate-spin h-4 w-4 mr-3 ..."
+                className="bg-white dark:bg-gray-light animate-spin h-4 w-4 mr-3 ..."
                 viewBox="0 0 24 24"
               ></svg>
             )}
@@ -146,7 +148,7 @@ export default function Web() {
               }
             }}
             placeholder={`Latex will appear here... \n ${exampleOutput} \n ${example2Output} \n ${example3Output}`}
-            className="textarea textarea-bordered textarea-md h-44 w-full min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy"
+            className="textarea textarea-bordered textarea-md h-44 w-full min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy dark:text-gray-light dark:focus:border-gray-light dark:bg-gray-medium"
           ></textarea>
           {copied && (
             <div className="alert alert-success">
@@ -158,6 +160,8 @@ export default function Web() {
         </div>
       </div>
       <Footer />
+
     </>
+
   );
 }
