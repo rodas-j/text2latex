@@ -1,14 +1,11 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import applyRateLimit from "./rateLimiting";
 
-const { Configuration, OpenAIApi } = require("openai");
+import OpenAI from "openai";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-const configuration = new Configuration({
-  apiKey: OPENAI_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -36,16 +33,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const SUFFIX = "OUTPUT:\n";
   const fullPrompt = PREFACE + "\n" + prompt + "\n" + SUFFIX;
 
-  const response = await openai.createCompletion({
-    model: "text-davinci-003",
-    prompt: fullPrompt,
-    temperature: 0.7,
-    max_tokens: 256,
-    top_p: 1,
-    frequency_penalty: 0,
-    presence_penalty: 0,
+  const completion = await openai.chat.completions.create({
+    messages: [{ role: "user", content: fullPrompt }],
+    model: "gpt-3.5-turbo",
   });
-  const data = response.data.choices[0].text;
+  const data = completion.choices[0].message.content;
 
   res.status(200).json({ data: data });
 }

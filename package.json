@@ -22,7 +22,10 @@
   },
   "dependencies": {
     "dotenv": "^16.0.3",
-    "dotenv-cli": "^7.0.0"
+    "dotenv-cli": "^7.0.0",
+    "next": "^14.0.3",
+    "openai": "4",
+    "web": "^0.0.2"
   },
   "packageManager": "pnpm@7.25.1"
 }

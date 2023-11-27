@@ -120,10 +120,7 @@ export default function Web() {
             } `}
           ></textarea>
 
-          <button
-            onClick={handleTranscribe}
-            className="btn btn-outlinel bg-black my-4"
-          >
+          <button onClick={handleTranscribe} className="btn btn-outlinel  my-4">
             {loading && (
               <svg
                 className="bg-white animate-spin h-4 w-4 mr-3 ..."
