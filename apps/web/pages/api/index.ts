@@ -24,7 +24,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   } else if (typeof prompt !== "string") {
     res.status(400).json({ error: "Prompt must be a string" });
     return;
-  } else if (prompt.length > 1000) {
+  } else if (prompt.length > 2000) {
     res.status(400).json({ error: "Prompt must be less than 1000 characters" });
     return;
   }

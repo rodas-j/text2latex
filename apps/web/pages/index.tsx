@@ -56,7 +56,7 @@ export default function Web() {
   const handleTranscribe = async () => {
     console.log("transcribing");
     setLoading(true);
-    if (text.length > 1000) {
+    if (text.length > 2000) {
       console.log("text is too long");
       setIsTextLong(true);
       setLoading(false);
