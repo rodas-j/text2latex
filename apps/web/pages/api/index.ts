@@ -30,7 +30,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   // We want to be able to render in our app + have users paste the LaTeX into overleaf
-  const PREFACE = `Turn the following into latex and make sure it's compatible with react-next-js Latex component and Overleaf:`;
+  const PREFACE = `Turn the following into latex and make sure it can render in the LaTeX component in react-next-js and render in Overleaf:`;
   const SUFFIX = "OUTPUT:\n";
   const fullPrompt = PREFACE + "\n" + prompt + "\n" + SUFFIX;
 

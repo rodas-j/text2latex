@@ -148,17 +148,18 @@ export default function Web() {
               className="textarea textarea-bordered textarea-md h-44 w-full md:w-1/2 min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy"
             ></textarea>
           )}
+        </div>
 
+        {/* TODO: fix render design */}
+        <div>
           {copied && (
-            <div className="alert alert-success">
+            <div className="alert alert-success text-center mx-auto w-full">
               <div>
                 <span>Copied to Clipboard.</span>
               </div>
             </div>
           )}
         </div>
-
-        {/* TODO: fix render design */}
         <div className="flex flex-row gap-2">
           <button onClick={handleTranscribe} className="btn btn-outlinel  my-4">
             {loading && (
