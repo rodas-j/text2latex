@@ -110,25 +110,15 @@ export default function Web() {
         <p className="text-rose-600"> {isTextLong && "Text is too long"} </p>
         <p className="text-rose-600"> {errorText} </p>
 
-        <div className="flex-col  justify-between min-w-lg p-5">
+        <div className="flex w-full min-w-lg gap-10 p-5">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={`Write normal text here... \n ${exampleInput} \n ${example2Input} \n ${example3Input}`}
-            className={`textarea textarea-bordered textarea-md h-44 w-full min-w-lg border-2 rounded-none focus:outline-none focus:border-black  ${
+            className={`textarea textarea-bordered textarea-md h-44 w-1/2 min-w-lg border-2 rounded-none focus:outline-none focus:border-black  ${
               isTextLong && "textarea-error"
             } `}
           ></textarea>
-
-          <button onClick={handleTranscribe} className="btn btn-outlinel  my-4">
-            {loading && (
-              <svg
-                className="bg-white animate-spin h-4 w-4 mr-3 ..."
-                viewBox="0 0 24 24"
-              ></svg>
-            )}
-            Transcribe
-          </button>
 
           <textarea
             value={latex}
@@ -143,8 +133,9 @@ export default function Web() {
               }
             }}
             placeholder={`Latex will appear here... \n ${exampleOutput} \n ${example2Output} \n ${example3Output}`}
-            className="textarea textarea-bordered textarea-md h-44 w-full min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy"
+            className="textarea textarea-bordered textarea-md h-44 w-1/2 min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy"
           ></textarea>
+
           {copied && (
             <div className="alert alert-success">
               <div>
@@ -152,6 +143,17 @@ export default function Web() {
               </div>
             </div>
           )}
+        </div>
+        <div>
+          <button onClick={handleTranscribe} className="btn btn-outlinel  my-4">
+            {loading && (
+              <svg
+                className="bg-white animate-spin h-4 w-4 mr-3 ..."
+                viewBox="0 0 24 24"
+              ></svg>
+            )}
+            Transcribe
+          </button>
         </div>
       </div>
       <Footer />
