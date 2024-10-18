@@ -26,6 +26,7 @@
     "next": "^14.0.3",
     "openai": "4",
     "posthog-js": "^1.104.4",
+    "react-latex-next": "^3.0.0",
     "web": "^0.0.2"
   },
   "packageManager": "pnpm@7.25.1"

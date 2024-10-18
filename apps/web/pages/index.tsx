@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import NavBar from "../components/navbar/NavBar";
 import Footer from "../components/footer/Footer";
+import Latex from "react-latex-next";
+import "katex/dist/katex.min.css";
 
 export default function Web() {
   const [copied, setCopied] = useState(false);
@@ -13,6 +15,7 @@ export default function Web() {
   const [text, setText] = useState("");
   const [latex, setLatex] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isRender, setIsRender] = useState(false);
 
   async function transcribe(text: string) {
     let myHeaders = new Headers();
@@ -68,10 +71,14 @@ export default function Web() {
     setLoading(false);
   };
 
+  const handleRender = () => {
+    setIsRender(!isRender);
+  };
+
   const defaults = {
-    title: "Text2Latex",
+    title: "Text2LaTeX",
     description:
-      "Text2Latex is an AI-powered tool that transcribes natural language to LaTeX.",
+      "Text2LaTeX is an AI-powered tool that transcribes natural language to LaTeX.",
     image: "og.png",
     url: "https://text2latex.com/",
   };
@@ -110,16 +117,50 @@ export default function Web() {
         <p className="text-rose-600"> {isTextLong && "Text is too long"} </p>
         <p className="text-rose-600"> {errorText} </p>
 
-        <div className="flex-col  justify-between min-w-lg p-5">
+        <div className="flex flex-col justify-between md:flex-row w-full min-w-lg gap-10 p-5">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={`Write normal text here... \n ${exampleInput} \n ${example2Input} \n ${example3Input}`}
-            className={`textarea textarea-bordered textarea-md h-44 w-full min-w-lg border-2 rounded-none focus:outline-none focus:border-black  ${
+            className={`textarea textarea-bordered textarea-md h-44 w-full md:w-1/2 min-w-lg border-2 rounded-none focus:outline-none focus:border-black  ${
               isTextLong && "textarea-error"
             } `}
           ></textarea>
 
+          {isRender ? (
+            <div className="textarea textarea-bordered textarea-md h-44 w-full md:w-1/2 min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy">
+              <Latex>{`${latex}`}</Latex>
+            </div>
+          ) : (
+            <textarea
+              value={latex}
+              readOnly
+              onClick={() => {
+                navigator.clipboard.writeText(latex);
+                if (!copied) {
+                  setCopied(true);
+                  setTimeout(() => {
+                    setCopied(false);
+                  }, 2000);
+                }
+              }}
+              placeholder={`LaTeX will appear here... \n ${exampleOutput} \n ${example2Output} \n ${example3Output}`}
+              className="textarea textarea-bordered textarea-md h-44 w-full md:w-1/2 min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy"
+            ></textarea>
+          )}
+        </div>
+
+        {/* TODO: fix render design */}
+        <div>
+          {copied && (
+            <div className="alert alert-success text-center mx-auto w-full">
+              <div>
+                <span>Copied to Clipboard.</span>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-row gap-2">
           <button onClick={handleTranscribe} className="btn btn-outlinel  my-4">
             {loading && (
               <svg
@@ -130,30 +171,12 @@ export default function Web() {
             Transcribe
           </button>
 
-          <textarea
-            value={latex}
-            readOnly
-            onClick={() => {
-              navigator.clipboard.writeText(latex);
-              if (!copied) {
-                setCopied(true);
-                setTimeout(() => {
-                  setCopied(false);
-                }, 2000);
-              }
-            }}
-            placeholder={`Latex will appear here... \n ${exampleOutput} \n ${example2Output} \n ${example3Output}`}
-            className="textarea textarea-bordered textarea-md h-44 w-full min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy"
-          ></textarea>
-          {copied && (
-            <div className="alert alert-success">
-              <div>
-                <span>Copied to Clipboard.</span>
-              </div>
-            </div>
-          )}
+          <button onClick={handleRender} className="btn btn-outlinel my-4">
+            {isRender ? "Show raw LaTeX" : "Render LaTeX"}
+          </button>
         </div>
       </div>
+
       <Footer />
     </>
   );
