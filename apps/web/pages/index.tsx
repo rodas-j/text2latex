@@ -110,12 +110,12 @@ export default function Web() {
         <p className="text-rose-600"> {isTextLong && "Text is too long"} </p>
         <p className="text-rose-600"> {errorText} </p>
 
-        <div className="flex w-full min-w-lg gap-10 p-5">
+        <div className="flex flex-col justify-between md:flex-row w-full min-w-lg gap-10 p-5">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={`Write normal text here... \n ${exampleInput} \n ${example2Input} \n ${example3Input}`}
-            className={`textarea textarea-bordered textarea-md h-44 w-1/2 min-w-lg border-2 rounded-none focus:outline-none focus:border-black  ${
+            className={`textarea textarea-bordered textarea-md h-44 w-full md:w-1/2 min-w-lg border-2 rounded-none focus:outline-none focus:border-black  ${
               isTextLong && "textarea-error"
             } `}
           ></textarea>
@@ -133,7 +133,7 @@ export default function Web() {
               }
             }}
             placeholder={`Latex will appear here... \n ${exampleOutput} \n ${example2Output} \n ${example3Output}`}
-            className="textarea textarea-bordered textarea-md h-44 w-1/2 min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy"
+            className="textarea textarea-bordered textarea-md h-44 w-full md:w-1/2 min-w-lg  disabled border-2 rounded-none focus:outline-none focus:border-black cursor-copy"
           ></textarea>
 
           {copied && (
