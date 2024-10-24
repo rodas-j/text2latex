@@ -38,11 +38,50 @@ export default function Index() {
   const example3Output = "\\int_{0}^{1} (x^2 + 2x + 1) , dx";
 
   async function transcribe(text: string) {
-    // ... existing transcribe function ...
+    try {
+      const apiUrl = import.meta.env.VITE_TEXT2LATEX_URL;
+      if (!apiUrl) {
+        throw new Error("VITE_TEXT2LATEX_URL is not defined");
+      }
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: text }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error("Error:", error);
+      throw error;
+    }
   }
 
   const handleTranscribe = async () => {
-    // ... existing handleTranscribe function ...
+    if (!text) return;
+    if (text.length > 500) {
+      setIsTextLong(true);
+      return;
+    }
+    setIsTextLong(false);
+    setErrorText("");
+    setLoading(true);
+
+    try {
+      const latexResult = await transcribe(text);
+      setLatex(latexResult);
+    } catch (error) {
+      setErrorText("Failed to convert text. Please try again.");
+      console.error("Error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRender = () => setIsRender(!isRender);

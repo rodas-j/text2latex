@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "remix vite:build",
-    "dev": "remix vite:dev",
+    "frontend:dev": "remix vite:dev",
     "backend:dev": "wrangler dev",
+    "dev": "concurrently \"npm run frontend:dev\" \"npm run backend:dev\"",
     "backend:deploy": "wrangler deploy",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "start": "remix-serve ./build/server/index.js",
@@ -24,13 +25,16 @@
     "clsx": "^2.1.1",
     "isbot": "^4.1.0",
     "lucide-react": "^0.453.0",
+    "openai": "^4.68.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-latex-next": "^3.0.0",
+    "concurrently": "^8.2.2",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241022.0",
     "@remix-run/dev": "^2.13.1",
     "@types/react": "^18.2.20",
     "@types/react-dom": "^18.2.7",
