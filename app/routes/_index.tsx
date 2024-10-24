@@ -8,8 +8,8 @@ import { Loader2 } from "lucide-react";
 import { Clock } from "lucide-react";
 import Latex from "react-latex-next";
 import "katex/dist/katex.min.css";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, Star, Share2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Copy, Star, Share2, ThumbsUp, ThumbsDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const meta: MetaFunction = () => {
@@ -119,9 +119,9 @@ export default function Index() {
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={`Write normal text here... \n${exampleInput}`}
+            placeholder={`Write normal text here... \n${exampleInput} \n${example2Input} \n${example3Input}`}
             className={cn(
-              "min-h-[176px] resize-none",
+              "min-h-[176px] resize-none focus:outline-none",
               isTextLong && "border-destructive"
             )}
           />
@@ -134,50 +134,72 @@ export default function Index() {
         </div>
 
         <div className="space-y-4">
-          {isRender ? (
-            <div className="border rounded-md p-4 min-h-[176px]">
-              <Latex>{latex}</Latex>
-            </div>
-          ) : (
-            <Textarea
-              value={latex}
-              readOnly
-              placeholder="LaTeX will appear here..."
-              className="min-h-[176px] resize-none"
-            />
-          )}
+          <Tabs defaultValue="preview" className="w-full">
+            <TabsContent value="preview" className="mt-0">
+              <div className="border rounded-md p-4 min-h-[176px]">
+                <Latex>{latex}</Latex>
+              </div>
+            </TabsContent>
 
-          <div className="flex justify-between items-center">
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  navigator.clipboard.writeText(latex);
-                  if (!copied) {
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }
-                }}
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon">
-                <Star className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="ghost" size="icon">
-                <ThumbsUp className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon">
-                <ThumbsDown className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon">
-                <Share2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+            <TabsContent value="code" className="mt-0">
+              <Textarea
+                value={latex}
+                readOnly
+                className="min-h-[176px] resize-none bg-[#18181B] text-white placeholder:text-gray-400 focus:outline-none"
+              />
+            </TabsContent>
+            <TabsList className="mb-4 flex justify-between">
+              <div>
+                <TabsTrigger
+                  value="preview"
+                  className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-black dark:data-[state=active]:border-gray-200"
+                >
+                  Preview
+                </TabsTrigger>
+                <TabsTrigger
+                  value="code"
+                  className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-black dark:data-[state=active]:border-gray-200"
+                >
+                  Code
+                </TabsTrigger>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      navigator.clipboard.writeText(latex);
+                      if (!copied) {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }
+                    }}
+                  >
+                    {copied ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button variant="ghost" size="icon">
+                    <Star className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="icon">
+                    <ThumbsUp className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon">
+                    <ThumbsDown className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon">
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </TabsList>
+          </Tabs>
         </div>
       </div>
 
