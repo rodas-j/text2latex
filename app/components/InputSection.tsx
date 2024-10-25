@@ -30,7 +30,7 @@ export function InputSection({
         onChange={(e) => setText(e.target.value)}
         placeholder={`Write normal text here... \n${exampleInput} \n${example2Input} \n${example3Input}`}
         className={cn(
-          "min-h-[176px] resize-none focus:outline-none",
+          "min-h-[30vh] resize-none focus:outline-none",
           isTextLong && "border-destructive"
         )}
       />

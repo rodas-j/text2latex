@@ -62,25 +62,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       "2. Is compatible with Overleaf",
       "3. Includes necessary math mode delimiters ($ for inline or $$ for block math) where appropriate",
       "4. Properly escapes special characters",
-      //   "\n\nEXAMPLES:\n",
+      "\n\nEXAMPLES:\n",
 
-      //   "Example 1: Inline Math and Escaping Special Characters",
-      //   "INPUT:",
-      //   "The derivative of f(x) = 3x^2 - 2x + 1 is given by f'(x) = 6x - 2.",
-      //   "OUTPUT:",
-      //   "The derivative of \\( f(x) = 3x^2 - 2x + 1 \\) is given by \\( f'(x) = 6x - 2 \\).",
+      "Example 1: Inline Math and Escaping Special Characters",
+      "INPUT:",
+      "The derivative of f(x) = 3x^2 - 2x + 1 is given by f'(x) = 6x - 2.",
+      "OUTPUT:",
+      "The derivative of \\( f(x) = 3x^2 - 2x + 1 \\) is given by \\( f'(x) = 6x - 2 \\).",
 
-      //   "\nExample 2: Block Math with Complex Expressions",
-      //   "INPUT:",
-      //   "Calculate the probability density function: (1 / sqrt(2 * pi * sigma^2)) * exp(-(x - mu)^2 / (2 * sigma^2))",
-      //   "OUTPUT:",
-      //   "Calculate the probability density function:\n$$\nf(x) = \\frac{1}{\\sqrt{2 \\pi \\sigma^2}} \\exp\\left(-\\frac{(x - \\mu)^2}{2 \\sigma^2}\\right)\n$$",
+      "\nExample 2: Block Math with Complex Expressions",
+      "INPUT:",
+      "Calculate the probability density function: (1 / sqrt(2 * pi * sigma^2)) * exp(-(x - mu)^2 / (2 * sigma^2))",
+      "OUTPUT:",
+      "Calculate the probability density function:\n$$\nf(x) = \\frac{1}{\\sqrt{2 \\pi \\sigma^2}} \\exp\\left(-\\frac{(x - \\mu)^2}{2 \\sigma^2}\\right)\n$$",
 
-      //   "\nExample 3: Mixed Inline and Block Math with Complex Expressions",
-      //   "INPUT:",
-      //   "Find the cumulative distribution function F(x) by integrating from negative infinity to x of the probability density function. Then calculate the conditional probability of A given B as P(A and B) / P(B).",
-      //   "OUTPUT:",
-      //   "Find the cumulative distribution function \\( F(x) \\) by integrating from \\( -\\infty \\) to \\( x \\) of the probability density function:\n$$\nF(x) = \\int_{-\\infty}^x f(t) \\, dt\n$$\nThen, calculate the conditional probability of \\( A \\) given \\( B \\) as \\( P(A \\cap B) / P(B) \\).",
+      "\nExample 3: Mixed Inline and Block Math with Complex Expressions",
+      "INPUT:",
+      "Find the cumulative distribution function F(x) by integrating from negative infinity to x of the probability density function. Then calculate the conditional probability of A given B as P(A and B) / P(B).",
+      "OUTPUT:",
+      "Find the cumulative distribution function \\( F(x) \\) by integrating from \\( -\\infty \\) to \\( x \\) of the probability density function:\n$$\nF(x) = \\int_{-\\infty}^x f(t) \\, dt\n$$\nThen, calculate the conditional probability of \\( A \\) given \\( B \\) as \\( P(A \\cap B) / P(B) \\).",
 
       "\n\nINPUT:",
       prompt,
@@ -92,7 +92,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .create({
         messages: [{ role: "user", content: fullPrompt }],
         model: "gpt-3.5-turbo",
-        temperature: 0.3, // Lower temperature for more consistent formatting
+        temperature: 0.1, // Lower temperature for more consistent formatting
         max_tokens: 2000,
       })
       .catch((error) => {

@@ -71,7 +71,6 @@ export default function Index() {
 
   return (
     <div className="container mx-auto p-4">
-      <Header />
       {isTextLong && (
         <Alert variant="destructive" className="mb-4">
           <AlertDescription>Text is too long</AlertDescription>

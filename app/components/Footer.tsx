@@ -5,6 +5,9 @@ export function Footer() {
     <footer className="mt-8 border-t py-4">
       <div className="container mx-auto px-4">
         <nav className="flex flex-wrap justify-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+          <Link to="/" className="hover:underline">
+            Home
+          </Link>
           <Link to="/about" className="hover:underline">
             About Text2LaTex
           </Link>

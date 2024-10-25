@@ -1,7 +1,7 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Copy, Star, Share2, ThumbsUp, ThumbsDown, Check } from "lucide-react";
+import { Copy, Share2, ThumbsUp, ThumbsDown, Check } from "lucide-react";
 import Latex from "react-latex-next";
 import "katex/dist/katex.min.css";
 import React from "react";
@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Twitter, Mail } from "lucide-react";
+import LatexHighlight from "./LatexHighlight";
 
 interface OutputSectionProps {
   latex: string;
@@ -29,42 +30,38 @@ export function OutputSection({
     <div className="space-y-4">
       <Tabs defaultValue="preview" className="w-full">
         <TabsContent value="preview" className="mt-0">
-          <div className="border rounded-md p-4 min-h-[176px]">
+          <div className="border rounded-md p-4 min-h-[30vh] max-h-[30vh] overflow-auto">
             <Latex>{latex}</Latex>
           </div>
         </TabsContent>
 
         <TabsContent value="code" className="mt-0">
-          <Textarea
-            value={latex}
-            readOnly
-            className="min-h-[176px] resize-none bg-[#18181B] text-white placeholder:text-gray-400 focus:outline-none"
-          />
+          <div className="border rounded-md p-4 min-h-[30vh] max-h-[30vh] bg-[#18181B] text-white overflow-auto">
+            <LatexHighlight code={latex} />
+          </div>
         </TabsContent>
         <TabsList className="mb-4 flex justify-between">
           <div>
             <TabsTrigger
               value="preview"
               className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-black dark:data-[state=active]:border-gray-200"
+              title="View the preview"
             >
               Preview
             </TabsTrigger>
             <TabsTrigger
               value="code"
               className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-black dark:data-[state=active]:border-gray-200"
+              title="View the code"
             >
               Code
             </TabsTrigger>
           </div>
           <div className="flex justify-between items-center">
             <div className="flex gap-2">
-              {/* <Button variant="ghost" size="icon">
-                <Star className="h-4 w-4" />
-              </Button> */}
               <Button
                 variant="ghost"
                 size="icon"
-                disabled={!latex.trim()}
                 onClick={() => {
                   navigator.clipboard.writeText(latex);
                   if (!copied) {
@@ -82,7 +79,6 @@ export function OutputSection({
               <Button
                 variant="ghost"
                 size="icon"
-                disabled={!latex.trim()}
                 onClick={() => setLiked(true)}
                 className={liked === true ? "text-green-500" : ""}
               >
@@ -95,7 +91,6 @@ export function OutputSection({
               <Button
                 variant="ghost"
                 size="icon"
-                disabled={!latex.trim()}
                 onClick={() => setLiked(false)}
                 className={liked === false ? "text-red-500" : ""}
               >

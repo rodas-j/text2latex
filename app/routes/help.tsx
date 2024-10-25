@@ -124,6 +124,92 @@ export default function FAQPage() {
       <Typography.H2>Common Issues</Typography.H2>
 
       <Typography.P>
+        <strong>Block Equations vs Inline Equations</strong>
+      </Typography.P>
+
+      <Typography.P>
+        To get block equations (centered, on their own line), start a new
+        paragraph and add an extra line break before your mathematical
+        expression:
+      </Typography.P>
+
+      <div className="space-y-4 my-6">
+        <div className="border rounded-lg p-4 bg-muted/50">
+          <Typography.P className="font-mono text-sm">
+            Input:
+            {
+              "\n\nquadratic formula x equals negative b plus or minus square root of b squared minus 4ac all over 2a"
+            }
+          </Typography.P>
+          <Typography.P className="font-mono text-sm">
+            LaTeX: {"$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$"}
+          </Typography.P>
+          <Typography.P>
+            Renders as:{" "}
+            <Latex>{"$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$"}</Latex>
+          </Typography.P>
+        </div>
+
+        <div className="border rounded-lg p-4 bg-muted/50">
+          <Typography.P className="font-mono text-sm">
+            Input:
+            {"\n\nmatrix 1 2 3 newline 4 5 6 newline 7 8 9"}
+          </Typography.P>
+          <Typography.P className="font-mono text-sm">
+            LaTeX:{" "}
+            {
+              "$$\\begin{pmatrix} 1 & 2 & 3 \\\\ 4 & 5 & 6 \\\\ 7 & 8 & 9 \\end{pmatrix}$$"
+            }
+          </Typography.P>
+          <Typography.P>
+            Renders as:{" "}
+            <Latex>
+              {
+                "$$\\begin{pmatrix} 1 & 2 & 3 \\\\ 4 & 5 & 6 \\\\ 7 & 8 & 9 \\end{pmatrix}$$"
+              }
+            </Latex>
+          </Typography.P>
+        </div>
+
+        <div className="border rounded-lg p-4 bg-muted/50">
+          <Typography.P className="font-mono text-sm">
+            Input:
+            {
+              "\n\nsystem of equations x plus y equals 1 newline x minus y equals 2"
+            }
+          </Typography.P>
+          <Typography.P className="font-mono text-sm">
+            LaTeX: {"$$\\begin{cases} x + y = 1 \\\\ x - y = 2 \\end{cases}$$"}
+          </Typography.P>
+          <Typography.P>
+            Renders as:{" "}
+            <Latex>
+              {"$$\\begin{cases} x + y = 1 \\\\ x - y = 2 \\end{cases}$$"}
+            </Latex>
+          </Typography.P>
+        </div>
+      </div>
+
+      <Typography.P>
+        <strong>Key tips for block equations:</strong>
+      </Typography.P>
+      <ul className="ml-6 list-disc">
+        <Typography.Li>
+          Start a new paragraph before your math expression
+        </Typography.Li>
+        <Typography.Li>
+          Add an extra line break for block equations
+        </Typography.Li>
+        <Typography.Li>
+          Use "newline" to create line breaks within matrices and equations
+        </Typography.Li>
+        <Typography.Li>
+          For inline equations, just type your expression normally within a
+          sentence
+        </Typography.Li>
+      </ul>
+
+      <Typography.P>
         <strong>Why isn't my expression converting correctly?</strong>
       </Typography.P>
       <Typography.P>

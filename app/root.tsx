@@ -10,6 +10,7 @@ import { ThemeProvider } from "~/components/theme-provider";
 
 import "./tailwind.css";
 import { Footer } from "./components/Footer";
+import { Header } from "./components/Header";
 
 export const links: LinksFunction = () => [
   {
@@ -29,6 +30,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body className="flex min-h-full flex-col">
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+          <Header />
           <div className="flex-1">{children}</div>
           <Footer />
           <ScrollRestoration />
