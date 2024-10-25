@@ -60,11 +60,31 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       "Ensure the output:",
       "1. Can render in react-katex or react-latex components",
       "2. Is compatible with Overleaf",
-      "3. Includes necessary math mode delimiters ($ or $$) where appropriate",
+      "3. Includes necessary math mode delimiters ($ for inline or $$ for block math) where appropriate",
       "4. Properly escapes special characters",
-      "\nINPUT:",
+      //   "\n\nEXAMPLES:\n",
+
+      //   "Example 1: Inline Math and Escaping Special Characters",
+      //   "INPUT:",
+      //   "The derivative of f(x) = 3x^2 - 2x + 1 is given by f'(x) = 6x - 2.",
+      //   "OUTPUT:",
+      //   "The derivative of \\( f(x) = 3x^2 - 2x + 1 \\) is given by \\( f'(x) = 6x - 2 \\).",
+
+      //   "\nExample 2: Block Math with Complex Expressions",
+      //   "INPUT:",
+      //   "Calculate the probability density function: (1 / sqrt(2 * pi * sigma^2)) * exp(-(x - mu)^2 / (2 * sigma^2))",
+      //   "OUTPUT:",
+      //   "Calculate the probability density function:\n$$\nf(x) = \\frac{1}{\\sqrt{2 \\pi \\sigma^2}} \\exp\\left(-\\frac{(x - \\mu)^2}{2 \\sigma^2}\\right)\n$$",
+
+      //   "\nExample 3: Mixed Inline and Block Math with Complex Expressions",
+      //   "INPUT:",
+      //   "Find the cumulative distribution function F(x) by integrating from negative infinity to x of the probability density function. Then calculate the conditional probability of A given B as P(A and B) / P(B).",
+      //   "OUTPUT:",
+      //   "Find the cumulative distribution function \\( F(x) \\) by integrating from \\( -\\infty \\) to \\( x \\) of the probability density function:\n$$\nF(x) = \\int_{-\\infty}^x f(t) \\, dt\n$$\nThen, calculate the conditional probability of \\( A \\) given \\( B \\) as \\( P(A \\cap B) / P(B) \\).",
+
+      "\n\nINPUT:",
       prompt,
-      "\nOUTPUT:",
+      "\n\nOUTPUT:",
     ].join("\n");
 
     // Make OpenAI API call with error handling
