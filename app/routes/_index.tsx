@@ -11,6 +11,7 @@ import "katex/dist/katex.min.css";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Copy, Star, Share2, ThumbsUp, ThumbsDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Footer } from "~/components/Footer";
 
 export const meta: MetaFunction = () => {
   return [
@@ -89,7 +90,7 @@ export default function Index() {
   return (
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Text2Latex</h1>
+        <h1 className="text-2xl font-semibold">Text2LaTex</h1>
         <ModeToggle />
       </div>
 
@@ -213,6 +214,8 @@ export default function Index() {
           <span className="text-sm">History</span>
         </Button>
       </div>
+
+      <Footer />
     </div>
   );
 }
