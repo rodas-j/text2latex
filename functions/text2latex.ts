@@ -1,8 +1,8 @@
-import OpenAI from "openai";
 import { PagesFunction } from "@cloudflare/workers-types";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 interface Env {
-  OPENAI_API_KEY: string;
+  GEMINI_API_KEY: string;
 }
 
 // Handle CORS preflight requests
@@ -44,14 +44,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // Initialize OpenAI with error handling
-    if (!env.OPENAI_API_KEY) {
-      console.error("Missing OPENAI_API_KEY environment variable");
+    // Initialize Gemini with error handling
+    if (!env.GEMINI_API_KEY) {
+      console.error("Missing GEMINI_API_KEY environment variable");
       return createErrorResponse("Server configuration error", 500);
     }
 
-    const openai = new OpenAI({
-      apiKey: env.OPENAI_API_KEY,
+    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash-002",
+      generationConfig: {
+        temperature: 0.1, // Keep low temperature for consistent formatting
+        maxOutputTokens: 2000,
+      },
     });
 
     // Construct prompt with clear instructions
@@ -81,28 +86,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       "Find the cumulative distribution function F(x) by integrating from negative infinity to x of the probability density function. Then calculate the conditional probability of A given B as P(A and B) / P(B).",
       "OUTPUT:",
       "Find the cumulative distribution function \\( F(x) \\) by integrating from \\( -\\infty \\) to \\( x \\) of the probability density function:\n$$\nF(x) = \\int_{-\\infty}^x f(t) \\, dt\n$$\nThen, calculate the conditional probability of \\( A \\) given \\( B \\) as \\( P(A \\cap B) / P(B) \\).",
-
       "\n\nINPUT:",
       prompt,
       "\n\nOUTPUT:",
     ].join("\n");
 
-    // Make OpenAI API call with error handling
-    const completion = await openai.chat.completions
-      .create({
-        messages: [{ role: "user", content: fullPrompt }],
-        model: "gpt-3.5-turbo",
-        temperature: 0.1, // Lower temperature for more consistent formatting
-        max_tokens: 2000,
-      })
-      .catch((error) => {
-        console.error("OpenAI API Error:", error);
-        throw new Error("Failed to generate LaTeX");
-      });
+    // Make Gemini API call with error handling
+    const result = await model.generateContent(fullPrompt).catch((error) => {
+      console.error("Gemini API Error:", error);
+      throw new Error("Failed to generate LaTeX");
+    });
 
-    const latex = completion.choices[0].message.content;
+    const response = await result.response;
+    const latex = response.text();
     if (!latex) {
-      throw new Error("Empty response from OpenAI");
+      throw new Error("Empty response from Gemini");
     }
 
     // Return successful response
