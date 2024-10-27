@@ -66,6 +66,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       "2. Is compatible with Overleaf",
       "3. Includes necessary math mode delimiters ($ for inline or $$ for block math) where appropriate",
       "4. Properly escapes special characters",
+      "5. Do not enclose the output in latex block, i.e. ```latex```",
       "\n\nEXAMPLES:\n",
 
       "Example 1: Inline Math and Escaping Special Characters",
