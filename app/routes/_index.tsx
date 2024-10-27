@@ -10,7 +10,11 @@ import { TabsComponent } from "~/components/TabsComponent";
 export const meta: MetaFunction = () => {
   return [
     { title: "Text2Latex" },
-    { name: "description", content: "Convert text to LaTeX" },
+    {
+      name: "description",
+      content:
+        "Text2Latex is an AI-powered tool that transcribes normal text, code and natural language to LaTeX.",
+    },
   ];
 };
 
