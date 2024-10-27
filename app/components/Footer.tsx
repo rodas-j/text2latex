@@ -17,7 +17,7 @@ export function Footer() {
           <Link to="/help" className="hover:underline">
             Help
           </Link>
-          <a href="mailto:support@text2latex.com" className="hover:underline">
+          <a href="mailto:support@habeshalab.com" className="hover:underline">
             Send feedback
           </a>
         </nav>

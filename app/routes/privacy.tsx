@@ -27,7 +27,7 @@ export default function PrivacyPage() {
       <Typography.H2>Contact Us</Typography.H2>
       <Typography.P>
         If you have any questions about this Privacy Policy, please contact us
-        at: support@text2latex.com
+        at: support@habeshalab.com
       </Typography.P>
     </div>
   );
