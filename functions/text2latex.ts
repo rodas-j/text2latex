@@ -37,9 +37,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return createErrorResponse("Prompt must be a non-empty string", 400);
     }
 
-    if (prompt.length > 2000) {
+    if (prompt.length > 5000) {
       return createErrorResponse(
-        "Prompt must be less than 2000 characters",
+        "Prompt must be less than 5000 characters",
         400
       );
     }
@@ -55,7 +55,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       model: "gemini-1.5-flash-002",
       generationConfig: {
         temperature: 0.1, // Keep low temperature for consistent formatting
-        maxOutputTokens: 2000,
       },
     });
 

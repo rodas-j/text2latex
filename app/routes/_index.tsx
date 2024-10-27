@@ -54,7 +54,7 @@ export default function Index() {
 
   const handleTranscribe = async () => {
     if (!text) return;
-    if (text.length > 500) {
+    if (text.length > 5000) {
       setIsTextLong(true);
       return;
     }
