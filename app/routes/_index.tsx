@@ -1,11 +1,12 @@
 import type { MetaFunction } from "@remix-run/node";
 import { useState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Header } from "~/components/Header";
 import { InputSection } from "~/components/InputSection";
 import { OutputSection } from "~/components/OutputSection";
 import { BottomActions } from "~/components/BottomActions";
 import { TabsComponent } from "~/components/TabsComponent";
+import { AlertCircle } from "lucide-react";
 
 export const meta: MetaFunction = () => {
   return [
@@ -76,13 +77,17 @@ export default function Index() {
   return (
     <div className="container mx-auto p-4">
       {isTextLong && (
-        <Alert variant="destructive" className="mb-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
           <AlertDescription>Text is too long</AlertDescription>
         </Alert>
       )}
 
       {errorText && (
-        <Alert variant="destructive" className="mb-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
           <AlertDescription>{errorText}</AlertDescription>
         </Alert>
       )}

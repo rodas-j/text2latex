@@ -43,15 +43,20 @@ export function InputSection({
 
   return (
     <div className="space-y-4">
-      <Textarea
-        value={text}
-        onChange={handleTextChange}
-        placeholder={`Write normal text here... \n${exampleInput} \n${example2Input} \n${example3Input}`}
-        className={cn(
-          "min-h-[30vh] resize-none focus:outline-none",
-          isTextLong && "border-destructive"
-        )}
-      />
+      <div className="relative">
+        <Textarea
+          value={text}
+          onChange={handleTextChange}
+          placeholder={`Write normal text here... \n${exampleInput} \n${example2Input} \n${example3Input}`}
+          className={cn(
+            "min-h-[30vh] resize-none focus:outline-none pb-6",
+            isTextLong && "border-destructive"
+          )}
+        />
+        <div className="absolute bottom-2 right-2 text-sm text-gray-500">
+          {text.length}/5000
+        </div>
+      </div>
       {loading && (
         <div className="flex items-center">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
