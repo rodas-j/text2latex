@@ -86,6 +86,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       "Find the cumulative distribution function F(x) by integrating from negative infinity to x of the probability density function. Then calculate the conditional probability of A given B as P(A and B) / P(B).",
       "OUTPUT:",
       "Find the cumulative distribution function \\( F(x) \\) by integrating from \\( -\\infty \\) to \\( x \\) of the probability density function:\n$$\nF(x) = \\int_{-\\infty}^x f(t) \\, dt\n$$\nThen, calculate the conditional probability of \\( A \\) given \\( B \\) as \\( P(A \\cap B) / P(B) \\).",
+
+      "EXAMPLE 4: Be verbose do not include your own statements. You are just a latex converter.",
+      "INPUT:",
+      "Einsteins's equation is E=m",
+      "OUTPUT:",
+      "Einsteins's equation is \\( E = m \\).",
       "\n\nINPUT:",
       prompt,
       "\n\nOUTPUT:",
