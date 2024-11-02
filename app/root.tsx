@@ -5,7 +5,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from "@remix-run/react";
-import type { LinksFunction } from "@remix-run/node";
+import type { LinksFunction, MetaFunction } from "@remix-run/node";
 import { ThemeProvider } from "~/components/theme-provider";
 
 import "./tailwind.css";
@@ -18,6 +18,22 @@ export const links: LinksFunction = () => [
     href: "https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap",
   },
 ];
+
+export const meta: MetaFunction = () => {
+  return [
+    { title: "Text2LaTeX - Convert Text to LaTeX Online" },
+    {
+      name: "description",
+      content:
+        "Free online tool to convert plain text and mathematical expressions to LaTeX code. Simple, fast, and accurate LaTeX conversion powered by AI.",
+    },
+    {
+      name: "keywords",
+      content:
+        "LaTeX converter, text to LaTeX, math to LaTeX, online LaTeX tool, LaTeX generator",
+    },
+  ];
+};
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
