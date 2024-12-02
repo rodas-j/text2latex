@@ -4,27 +4,26 @@
  * For more information, see https://remix.run/file-conventions/entry.client
  */
 import { RemixBrowser } from "@remix-run/react";
-import { startTransition, StrictMode, useEffect } from "react";
+import { startTransition, StrictMode } from "react";
 import { hydrateRoot } from "react-dom/client";
-import posthog from "posthog-js";
+import { PostHogProvider } from "posthog-js/react";
 
-function PosthogInit() {
-  useEffect(() => {
-    posthog.init("phc_gnJxS3xB23ajulr5CYQa08YAgf4h3KitxW4wuwbpGdX", {
-      api_host: "https://us.i.posthog.com",
-      person_profiles: "identified_only",
-    });
-  }, []);
-
-  return null;
-}
+const options = {
+  api_host: "https://us.i.posthog.com",
+  person_profiles: "identified_only" as const,
+  feature_flag_request_timeout_ms: 3000,
+};
 
 startTransition(() => {
   hydrateRoot(
     document,
     <StrictMode>
-      <RemixBrowser />
-      <PosthogInit />
+      <PostHogProvider
+        apiKey="phc_gnJxS3xB23ajulr5CYQa08YAgf4h3KitxW4wuwbpGdX"
+        options={options}
+      >
+        <RemixBrowser />
+      </PostHogProvider>
     </StrictMode>
   );
 });

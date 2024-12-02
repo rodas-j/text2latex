@@ -7,6 +7,7 @@ import { OutputSection } from "~/components/OutputSection";
 import { BottomActions } from "~/components/BottomActions";
 import { TabsComponent } from "~/components/TabsComponent";
 import { AlertCircle } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 
 export const meta: MetaFunction = () => {
   return [
@@ -20,6 +21,7 @@ export const meta: MetaFunction = () => {
 };
 
 export default function Index() {
+  const posthog = usePostHog();
   const [copied, setCopied] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [isTextLong, setIsTextLong] = useState(false);
@@ -57,6 +59,9 @@ export default function Index() {
     if (!text) return;
     if (text.length > 5000) {
       setIsTextLong(true);
+      posthog?.capture("text_too_long", {
+        textLength: text.length,
+      });
       return;
     }
     setIsTextLong(false);
@@ -66,8 +71,15 @@ export default function Index() {
     try {
       const latexResult = await transcribe(text);
       setLatex(latexResult);
+      posthog?.capture("latex_conversion_success", {
+        inputLength: text.length,
+        outputLength: latexResult.length,
+      });
     } catch (error) {
       setErrorText("Failed to convert text. Please try again.");
+      posthog?.capture("latex_conversion_error", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       console.error("Error:", error);
     } finally {
       setLoading(false);

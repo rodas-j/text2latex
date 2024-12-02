@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { useLocation } from "@remix-run/react";
+import { usePostHog } from "posthog-js/react";
 import {
   Links,
   Meta,
@@ -58,5 +61,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const location = useLocation();
+  const posthog = usePostHog();
+
+  useEffect(() => {
+    // Track page views
+    posthog?.capture("$pageview");
+  }, [location, posthog]);
+
   return <Outlet />;
 }
