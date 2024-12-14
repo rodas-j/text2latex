@@ -44,6 +44,7 @@ export default function Index() {
       });
 
       if (!response.ok) {
+        console.error(response);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 

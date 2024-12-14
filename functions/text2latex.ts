@@ -1,8 +1,12 @@
-import { PagesFunction } from "@cloudflare/workers-types";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { ExecutionContext, PagesFunction } from "@cloudflare/workers-types";
+import OpenAI from "openai";
+import { observeOpenAI } from "langfuse";
 
 interface Env {
   GEMINI_API_KEY: string;
+  LANGFUSE_SECRET_KEY: string;
+  LANGFUSE_PUBLIC_KEY: string;
+  LANGFUSE_BASEURL: string;
 }
 
 // Handle CORS preflight requests
@@ -44,70 +48,85 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // Initialize Gemini with error handling
+    // Initialize OpenAI with error handling
     if (!env.GEMINI_API_KEY) {
       console.error("Missing GEMINI_API_KEY environment variable");
       return createErrorResponse("Server configuration error", 500);
     }
 
-    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash-002",
-      generationConfig: {
-        temperature: 0.1, // Keep low temperature for consistent formatting
-      },
-    });
+    // Initialize OpenAI with Langfuse observability and Gemini compatibility
+    const openai = observeOpenAI(
+      new OpenAI({
+        apiKey: env.GEMINI_API_KEY,
+        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+      }),
+      {
+        clientInitParams: {
+          publicKey: env.LANGFUSE_PUBLIC_KEY,
+          secretKey: env.LANGFUSE_SECRET_KEY,
+          baseUrl: env.LANGFUSE_BASEURL,
+        },
+        promptName: "og-prompt",
+        promptVersion: 1,
+        traceId: "text2latex-trace",
+        sessionId: "text2latex-session",
+        release: "1.0.0",
+        version: "production",
+        tags: ["text2latex", "gemini", "conversion", "openai-sdk"],
+      }
+    );
 
     // Construct prompt with clear instructions
-    const fullPrompt = [
-      "Convert the following text to LaTeX format.",
-      "Ensure the output:",
-      "1. Can render in react-katex or react-latex components",
-      "2. Is compatible with Overleaf",
-      "3. Includes necessary math mode delimiters ($ for inline or $$ for block math) where appropriate",
-      "4. Properly escapes special characters",
-      "5. Do not enclose the output in latex block, i.e. ```latex```",
-      "\n\nEXAMPLES:\n",
+    const messages = [
+      {
+        role: "system",
+        content: [
+          "Convert the following text to LaTeX format.",
+          "Ensure the output:",
+          "1. Can render in react-katex or react-latex components",
+          "2. Is compatible with Overleaf",
+          "3. Includes necessary math mode delimiters ($ for inline or $$ for block math) where appropriate",
+          "4. Properly escapes special characters",
+          "5. Do not enclose the output in latex block, i.e. ```latex```",
+          "\n\nEXAMPLES:\n",
+          "Example 1: Inline Math and Escaping Special Characters",
+          "INPUT:",
+          "The derivative of f(x) = 3x^2 - 2x + 1 is given by f'(x) = 6x - 2.",
+          "OUTPUT:",
+          "The derivative of \\( f(x) = 3x^2 - 2x + 1 \\) is given by \\( f'(x) = 6x - 2 \\).",
+          "\nExample 2: Block Math with Complex Expressions",
+          "INPUT:",
+          "Calculate the probability density function: (1 / sqrt(2 * pi * sigma^2)) * exp(-(x - mu)^2 / (2 * sigma^2))",
+          "OUTPUT:",
+          "Calculate the probability density function:\n$$\nf(x) = \\frac{1}{\\sqrt{2 \\pi \\sigma^2}} \\exp\\left(-\\frac{(x - \\mu)^2}{2 \\sigma^2}\\right)\n$$",
+        ].join("\n"),
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
+    ];
 
-      "Example 1: Inline Math and Escaping Special Characters",
-      "INPUT:",
-      "The derivative of f(x) = 3x^2 - 2x + 1 is given by f'(x) = 6x - 2.",
-      "OUTPUT:",
-      "The derivative of \\( f(x) = 3x^2 - 2x + 1 \\) is given by \\( f'(x) = 6x - 2 \\).",
+    // Make Gemini API call through OpenAI compatibility layer
+    const result = await openai.chat.completions
+      .create({
+        model: "gemini-1.5-flash",
+        messages,
+        temperature: 0.1,
+        max_tokens: 1000,
+      })
+      .catch((error) => {
+        console.error("Gemini API Error:", error);
+        throw new Error("Failed to generate LaTeX");
+      });
 
-      "\nExample 2: Block Math with Complex Expressions",
-      "INPUT:",
-      "Calculate the probability density function: (1 / sqrt(2 * pi * sigma^2)) * exp(-(x - mu)^2 / (2 * sigma^2))",
-      "OUTPUT:",
-      "Calculate the probability density function:\n$$\nf(x) = \\frac{1}{\\sqrt{2 \\pi \\sigma^2}} \\exp\\left(-\\frac{(x - \\mu)^2}{2 \\sigma^2}\\right)\n$$",
-
-      "\nExample 3: Mixed Inline and Block Math with Complex Expressions",
-      "INPUT:",
-      "Find the cumulative distribution function F(x) by integrating from negative infinity to x of the probability density function. Then calculate the conditional probability of A given B as P(A and B) / P(B).",
-      "OUTPUT:",
-      "Find the cumulative distribution function \\( F(x) \\) by integrating from \\( -\\infty \\) to \\( x \\) of the probability density function:\n$$\nF(x) = \\int_{-\\infty}^x f(t) \\, dt\n$$\nThen, calculate the conditional probability of \\( A \\) given \\( B \\) as \\( P(A \\cap B) / P(B) \\).",
-
-      "EXAMPLE 4: Be verbose do not include your own statements. You are just a latex converter.",
-      "INPUT:",
-      "Einsteins's equation is E=m",
-      "OUTPUT:",
-      "Einsteins's equation is \\( E = m \\).",
-      "\n\nINPUT:",
-      prompt,
-      "\n\nOUTPUT:",
-    ].join("\n");
-
-    // Make Gemini API call with error handling
-    const result = await model.generateContent(fullPrompt).catch((error) => {
-      console.error("Gemini API Error:", error);
-      throw new Error("Failed to generate LaTeX");
-    });
-
-    const response = await result.response;
-    const latex = response.text();
+    const latex = result.choices[0]?.message?.content;
     if (!latex) {
       throw new Error("Empty response from Gemini");
     }
+
+    // Ensure we flush any pending events before responding
+    await openai.flushAsync();
 
     // Return successful response
     return new Response(JSON.stringify({ data: latex.trim() }), {
@@ -119,6 +138,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     });
   } catch (error) {
     console.error("Error in text2latex:", error);
+
     return createErrorResponse(
       error instanceof Error ? error.message : "Internal server error",
       500
