@@ -22,6 +22,11 @@ const onRequestOptions: PagesFunction = async () => {
   });
 };
 
+// Helper function to determine if this request should be observed (1/3 probability)
+function shouldObserve(): boolean {
+  return Math.random() < 1 / 3;
+}
+
 // Handle POST requests
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
@@ -54,27 +59,29 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return createErrorResponse("Server configuration error", 500);
     }
 
-    // Initialize OpenAI with Langfuse observability and Gemini compatibility
-    const openai = observeOpenAI(
-      new OpenAI({
-        apiKey: env.GEMINI_API_KEY,
-        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-      }),
-      {
-        clientInitParams: {
-          publicKey: env.LANGFUSE_PUBLIC_KEY,
-          secretKey: env.LANGFUSE_SECRET_KEY,
-          baseUrl: env.LANGFUSE_BASEURL,
-        },
-        promptName: "og-prompt",
-        promptVersion: 1,
-        traceId: "text2latex-trace",
-        sessionId: "text2latex-session",
-        release: "1.0.0",
-        version: "production",
-        tags: ["text2latex", "gemini", "conversion", "openai-sdk"],
-      }
-    );
+    // Create base OpenAI client
+    const baseClient = new OpenAI({
+      apiKey: env.GEMINI_API_KEY,
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    });
+
+    // Conditionally wrap with Langfuse observability
+    const openai = shouldObserve()
+      ? observeOpenAI(baseClient, {
+          clientInitParams: {
+            publicKey: env.LANGFUSE_PUBLIC_KEY,
+            secretKey: env.LANGFUSE_SECRET_KEY,
+            baseUrl: env.LANGFUSE_BASEURL,
+          },
+          promptName: "og-prompt",
+          promptVersion: 1,
+          traceId: "text2latex-trace",
+          sessionId: "text2latex-session",
+          release: "1.0.0",
+          version: "production",
+          tags: ["text2latex", "gemini", "conversion", "openai-sdk"],
+        })
+      : baseClient;
 
     // Construct prompt with clear instructions
     const messages = [
@@ -125,10 +132,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       throw new Error("Empty response from Gemini");
     }
 
-    // Ensure we flush any pending events before responding
-    await openai.flushAsync();
+    // Only flush if we're using the observed client
+    if (shouldObserve()) {
+      // Fire and forget the flush operation
+      openai.flushAsync?.().catch((error: Error) => {
+        console.error("Error flushing Langfuse events:", error);
+        // Don't throw, just log the error
+      });
+    }
 
-    // Return successful response
+    // Return response immediately without waiting for flush
     return new Response(JSON.stringify({ data: latex.trim() }), {
       headers: {
         "Content-Type": "application/json",
