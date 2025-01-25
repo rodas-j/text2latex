@@ -29,6 +29,9 @@ function shouldObserve(): boolean {
 
 // Handle POST requests
 export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const requestId = crypto.randomUUID();
+  console.log(`[${requestId}] Starting request processing`);
+
   try {
     const { request, env } = context;
 
@@ -36,17 +39,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let body;
     try {
       body = await request.json();
+      console.log(`[${requestId}] Request body parsed successfully`);
     } catch {
+      console.error(`[${requestId}] Failed to parse request body as JSON`);
       return createErrorResponse("Invalid JSON body", 400);
     }
 
     // Type check and validate prompt
     const prompt = body?.prompt;
+    console.log(
+      `[${requestId}] Received prompt of length: ${prompt?.length ?? 0}`
+    );
+
     if (!prompt || typeof prompt !== "string") {
+      console.error(`[${requestId}] Invalid prompt type or empty prompt`);
       return createErrorResponse("Prompt must be a non-empty string", 400);
     }
 
     if (prompt.length > 5000) {
+      console.error(
+        `[${requestId}] Prompt exceeds maximum length: ${prompt.length}`
+      );
       return createErrorResponse(
         "Prompt must be less than 5000 characters",
         400
@@ -55,7 +68,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // Initialize OpenAI with error handling
     if (!env.GEMINI_API_KEY) {
-      console.error("Missing GEMINI_API_KEY environment variable");
+      console.error(
+        `[${requestId}] Missing GEMINI_API_KEY environment variable`
+      );
       return createErrorResponse("Server configuration error", 500);
     }
 
@@ -64,9 +79,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       apiKey: env.GEMINI_API_KEY,
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
     });
+    console.log(`[${requestId}] OpenAI client initialized`);
+
+    // Determine if this request should be observed
+    const isObserved = shouldObserve();
+    console.log(
+      `[${requestId}] Request observation status: ${
+        isObserved ? "observed" : "not observed"
+      }`
+    );
 
     // Conditionally wrap with Langfuse observability
-    const openai = shouldObserve()
+    const openai = isObserved
       ? observeOpenAI(baseClient, {
           clientInitParams: {
             publicKey: env.LANGFUSE_PUBLIC_KEY,
@@ -75,7 +99,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           },
           promptName: "og-prompt",
           promptVersion: 1,
-          traceId: "text2latex-trace",
+          traceId: `text2latex-trace-${requestId}`,
           sessionId: "text2latex-session",
           release: "1.0.0",
           version: "production",
@@ -83,6 +107,23 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         })
       : baseClient;
 
+    console.log(
+      `[${requestId}] OpenAI client ${
+        isObserved ? "wrapped with Langfuse" : "initialized without observation"
+      }`
+    );
+
+    // Log Langfuse observation status
+    if (isObserved) {
+      console.log(
+        `[${requestId}] Langfuse trace ID: text2latex-trace-${requestId}`
+      );
+      console.log(
+        `[${requestId}] Langfuse observation enabled with prompt name: og-prompt`
+      );
+    }
+
+    console.log(`[${requestId}] Making API request to Gemini`);
     // Construct prompt with clear instructions
     const messages = [
       {
@@ -123,24 +164,33 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         max_tokens: 1000,
       })
       .catch((error) => {
-        console.error("Gemini API Error:", error);
+        console.error(`[${requestId}] Gemini API Error:`, error);
         throw new Error("Failed to generate LaTeX");
       });
 
-    const latex = result.choices[0]?.message?.content;
-    if (!latex) {
-      throw new Error("Empty response from Gemini");
+    console.log(`[${requestId}] Received response from Gemini`);
+    if (isObserved) {
+      console.log(`[${requestId}] Langfuse observed completion event`);
     }
 
+    const latex = result.choices[0]?.message?.content;
+    if (!latex) {
+      console.error(`[${requestId}] Empty response from Gemini`);
+      throw new Error("Empty response from Gemini");
+    }
+    console.log(`[${requestId}] Generated LaTeX of length: ${latex.length}`);
+
     // Only flush if we're using the observed client
-    if (shouldObserve()) {
+    if (isObserved) {
+      console.log(`[${requestId}] Attempting to flush Langfuse events`);
       // Fire and forget the flush operation
       openai.flushAsync?.().catch((error: Error) => {
-        console.error("Error flushing Langfuse events:", error);
+        console.error(`[${requestId}] Error flushing Langfuse events:`, error);
         // Don't throw, just log the error
       });
     }
 
+    console.log(`[${requestId}] Request completed successfully`);
     // Return response immediately without waiting for flush
     return new Response(JSON.stringify({ data: latex.trim() }), {
       headers: {
@@ -150,7 +200,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       },
     });
   } catch (error) {
-    console.error("Error in text2latex:", error);
+    console.error(`[${requestId}] Error in text2latex:`, error);
 
     return createErrorResponse(
       error instanceof Error ? error.message : "Internal server error",
