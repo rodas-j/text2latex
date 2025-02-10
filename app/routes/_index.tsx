@@ -8,6 +8,11 @@ import { BottomActions } from "~/components/BottomActions";
 import { TabsComponent } from "~/components/TabsComponent";
 import { AlertCircle } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
+import { ConversionDrawer } from "~/components/ConversionDrawer";
+import { StarButton } from "~/components/StarButton";
+import { Id } from "@/convex/_generated/dataModel";
+import { useAction } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 export const meta: MetaFunction = () => {
   return [
@@ -28,32 +33,11 @@ export default function Index() {
   const [text, setText] = useState("");
   const [latex, setLatex] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lastConversionId, setLastConversionId] = useState<
+    Id<"conversions"> | undefined
+  >(undefined);
 
-  async function transcribe(text: string) {
-    try {
-      const apiUrl = import.meta.env.VITE_TEXT2LATEX_URL;
-      if (!apiUrl) {
-        throw new Error("VITE_TEXT2LATEX_URL is not defined");
-      }
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt: text }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.data;
-    } catch (error) {
-      console.error("Error:", error);
-      throw error;
-    }
-  }
+  const convertToLatex = useAction(api.conversions.convertToLatex);
 
   const handleTranscribe = async () => {
     if (!text) return;
@@ -69,11 +53,11 @@ export default function Index() {
     setLoading(true);
 
     try {
-      const latexResult = await transcribe(text);
-      setLatex(latexResult);
+      const result = await convertToLatex({ text });
+      setLatex(result.data);
       posthog?.capture("latex_conversion_success", {
         inputLength: text.length,
-        outputLength: latexResult.length,
+        outputLength: result.data.length,
       });
     } catch (error) {
       setErrorText("Failed to convert text. Please try again.");
@@ -88,19 +72,27 @@ export default function Index() {
 
   return (
     <div className="container mx-auto p-4">
-      {isTextLong && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>Text is too long</AlertDescription>
+      {errorText && (
+        <Alert variant="destructive" className="mb-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <div>
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{errorText}</AlertDescription>
+            </div>
+          </div>
         </Alert>
       )}
 
-      {errorText && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{errorText}</AlertDescription>
+      {isTextLong && (
+        <Alert variant="destructive" className="mb-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <div>
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>Text is too long</AlertDescription>
+            </div>
+          </div>
         </Alert>
       )}
 
@@ -112,8 +104,15 @@ export default function Index() {
           handleTranscribe={handleTranscribe}
           loading={loading}
           isTextLong={isTextLong}
+          output={latex}
+          lastConversionId={lastConversionId}
         />
         <OutputSection latex={latex} copied={copied} setCopied={setCopied} />
+      </div>
+
+      <div className="flex justify-center items-center mt-6 gap-4">
+        <ConversionDrawer onSelect={setText} />
+        {lastConversionId && <StarButton conversionId={lastConversionId} />}
       </div>
 
       {/* <BottomActions /> */}

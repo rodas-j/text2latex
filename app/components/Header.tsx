@@ -1,6 +1,7 @@
 import { Link } from "@remix-run/react";
 import { ModeToggle } from "~/components/mode-toggle";
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/remix";
+import { Button } from "~/components/ui/button";
 
 export function Header() {
   return (
@@ -16,9 +17,7 @@ export function Header() {
           </SignedIn>
           <SignedOut>
             <SignInButton mode="modal">
-              <button className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90">
-                Sign in
-              </button>
+              <Button variant="outline">Sign in</Button>
             </SignInButton>
           </SignedOut>
         </div>
