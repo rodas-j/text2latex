@@ -24,7 +24,8 @@
     "baseUrl": ".",
     "paths": {
       "~/*": ["./app/*"],
-      "@/*": ["./app/*"]
+      "@/*": ["./app/*"],
+      "@/convex/*": ["./convex/*"]
     },
 
     // Vite takes care of building everything, not tsc.

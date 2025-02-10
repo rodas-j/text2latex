@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import { useLocation } from "@remix-run/react";
 import { usePostHog } from "posthog-js/react";
+import { ClerkApp, useAuth } from "@clerk/remix";
+import { ConvexProviderWithClerk } from "convex/react-clerk";
+import { ConvexReactClient } from "convex/react";
+
 import {
   Links,
   Meta,
@@ -38,7 +42,18 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export function Layout({ children }: { children: React.ReactNode }) {
+function App() {
+  const location = useLocation();
+  const posthog = usePostHog();
+
+  useEffect(() => {
+    // Track page views
+    posthog?.capture("$pageview");
+  }, [location, posthog]);
+  const convex = new ConvexReactClient(
+    import.meta.env.VITE_CONVEX_URL as string
+  );
+
   return (
     <html lang="en" className="h-full">
       <head>
@@ -48,26 +63,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body className="flex min-h-full flex-col">
-        <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-          <Header />
-          <div className="flex-1">{children}</div>
-          <Footer />
-          <ScrollRestoration />
-          <Scripts />
-        </ThemeProvider>
+        <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+          <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+            <Header />
+            <div className="flex-1">
+              <Outlet />
+            </div>
+            <Footer />
+            <ScrollRestoration />
+            <Scripts />
+          </ThemeProvider>
+        </ConvexProviderWithClerk>
       </body>
     </html>
   );
 }
 
-export default function App() {
-  const location = useLocation();
-  const posthog = usePostHog();
+// Import your Publishable Key
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-  useEffect(() => {
-    // Track page views
-    posthog?.capture("$pageview");
-  }, [location, posthog]);
-
-  return <Outlet />;
-}
+// Wrap your app with `ClerkApp`
+export default ClerkApp(App, {
+  publishableKey: PUBLISHABLE_KEY,
+  signInFallbackRedirectUrl: "/",
+  signUpFallbackRedirectUrl: "/",
+});

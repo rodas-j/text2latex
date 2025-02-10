@@ -12,17 +12,23 @@ import {
 } from "@/components/ui/popover";
 import { Twitter, Mail } from "lucide-react";
 import LatexHighlight from "./LatexHighlight";
+import { StarButton } from "./StarButton";
+import { Id } from "@/convex/_generated/dataModel";
 
 interface OutputSectionProps {
   latex: string;
+  input: string;
   copied: boolean;
   setCopied: (copied: boolean) => void;
+  lastConversionId?: Id<"conversions">;
 }
 
 export function OutputSection({
   latex,
+  input,
   copied,
   setCopied,
+  lastConversionId,
 }: OutputSectionProps) {
   const [liked, setLiked] = React.useState<boolean | null>(null);
 
@@ -76,6 +82,11 @@ export function OutputSection({
                   <Copy className="h-4 w-4" />
                 )}
               </Button>
+              <StarButton
+                input={input}
+                output={latex}
+                conversionId={lastConversionId}
+              />
               <Button
                 variant="ghost"
                 size="icon"
