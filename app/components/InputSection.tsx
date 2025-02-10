@@ -15,6 +15,7 @@ interface InputSectionProps {
   isTextLong: boolean;
   output: string;
   lastConversionId?: Id<"conversions">;
+  skipAutoTranslate?: boolean;
 }
 
 export function InputSection({
@@ -25,6 +26,7 @@ export function InputSection({
   isTextLong,
   output,
   lastConversionId,
+  skipAutoTranslate,
 }: InputSectionProps) {
   const exampleInput = `limit n->0 (5^n/n^2)`;
   const example2Input = `sum from 1 to n of n/2`;
@@ -36,6 +38,10 @@ export function InputSection({
 
   // Custom debounce implementation using useEffect and useRef
   useEffect(() => {
+    if (skipAutoTranslate) {
+      return;
+    }
+
     if (text.trim()) {
       // Clear the previous timeout if it exists
       if (debounceTimeout.current) {
@@ -54,7 +60,7 @@ export function InputSection({
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [text]); // Re-run the effect when 'text' changes
+  }, [text, skipAutoTranslate]); // Re-run the effect when 'text' or 'skipAutoTranslate' changes
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);

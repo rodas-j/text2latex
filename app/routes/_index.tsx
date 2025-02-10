@@ -33,6 +33,7 @@ export default function Index() {
   const [text, setText] = useState("");
   const [latex, setLatex] = useState("");
   const [loading, setLoading] = useState(false);
+  const [skipAutoTranslate, setSkipAutoTranslate] = useState(false);
   const [lastConversionId, setLastConversionId] = useState<
     Id<"conversions"> | undefined
   >(undefined);
@@ -55,6 +56,7 @@ export default function Index() {
     try {
       const result = await convertToLatex({ text });
       setLatex(result.data);
+      setLastConversionId(result.conversionId);
       posthog?.capture("latex_conversion_success", {
         inputLength: text.length,
         outputLength: result.data.length,
@@ -68,6 +70,14 @@ export default function Index() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleHistorySelect = (input: string, output: string) => {
+    setSkipAutoTranslate(true);
+    setText(input);
+    setLatex(output);
+    // Reset skipAutoTranslate after a short delay to allow for future edits to trigger translation
+    setTimeout(() => setSkipAutoTranslate(false), 100);
   };
 
   return (
@@ -106,13 +116,19 @@ export default function Index() {
           isTextLong={isTextLong}
           output={latex}
           lastConversionId={lastConversionId}
+          skipAutoTranslate={skipAutoTranslate}
         />
-        <OutputSection latex={latex} copied={copied} setCopied={setCopied} />
+        <OutputSection
+          latex={latex}
+          input={text}
+          copied={copied}
+          setCopied={setCopied}
+          lastConversionId={lastConversionId}
+        />
       </div>
 
       <div className="flex justify-center items-center mt-6 gap-4">
-        <ConversionDrawer onSelect={setText} />
-        {lastConversionId && <StarButton conversionId={lastConversionId} />}
+        <ConversionDrawer onSelect={handleHistorySelect} />
       </div>
 
       {/* <BottomActions /> */}

@@ -230,13 +230,20 @@ export const convertToLatex = action({
 
       const trimmedLatex = latex.trim();
 
-      // Save the conversion using the internal mutation
-      await ctx.runMutation(internal.conversions.saveConversionResult, {
-        input: args.text,
-        output: trimmedLatex,
-      });
+      // Save the conversion and get the ID
+      const conversionId = await ctx.runMutation(
+        internal.conversions.saveConversionResult,
+        {
+          input: args.text,
+          output: trimmedLatex,
+        }
+      );
 
-      return { data: trimmedLatex };
+      // Return both the latex and the conversion ID
+      return {
+        data: trimmedLatex,
+        conversionId,
+      };
     } catch (error) {
       throw new Error(
         error instanceof Error ? error.message : "Failed to generate LaTeX"

@@ -16,7 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { api } from "@/convex/_generated/api";
-import { useClerk } from "@clerk/remix";
+import { useClerk, SignInButton } from "@clerk/remix";
 
 interface ConversionItem {
   _id: string;
@@ -55,25 +55,41 @@ export function ConversionDrawer({ onSelect }: ConversionDrawerProps) {
 
   return (
     <div className="flex gap-4">
-      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+      <Dialog
+        open={isHistoryOpen}
+        onOpenChange={(open) => {
+          if (!user && open) {
+            return;
+          }
+          setIsHistoryOpen(open);
+        }}
+      >
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <DialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="lg"
-                  className="relative hover:bg-accent p-3 [&_svg]:!w-6 [&_svg]:!h-6"
-                  onClick={() => {
-                    if (!user) {
-                      return;
-                    }
-                  }}
-                >
-                  <History className="h-6 w-6" />
-                  <span className="sr-only">View history</span>
-                </Button>
-              </DialogTrigger>
+              {user ? (
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="lg"
+                    className="relative hover:bg-accent p-3 [&_svg]:!w-6 [&_svg]:!h-6"
+                  >
+                    <History className="h-6 w-6" />
+                    <span className="sr-only">View history</span>
+                  </Button>
+                </DialogTrigger>
+              ) : (
+                <SignInButton mode="modal">
+                  <Button
+                    variant="ghost"
+                    size="lg"
+                    className="relative hover:bg-accent p-3 [&_svg]:!w-6 [&_svg]:!h-6"
+                  >
+                    <History className="h-6 w-6" />
+                    <span className="sr-only">View history</span>
+                  </Button>
+                </SignInButton>
+              )}
             </TooltipTrigger>
             <TooltipContent>
               {user ? "View history" : "Sign in to view history"}
@@ -109,25 +125,41 @@ export function ConversionDrawer({ onSelect }: ConversionDrawerProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isFavoritesOpen} onOpenChange={setIsFavoritesOpen}>
+      <Dialog
+        open={isFavoritesOpen}
+        onOpenChange={(open) => {
+          if (!user && open) {
+            return;
+          }
+          setIsFavoritesOpen(open);
+        }}
+      >
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <DialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="lg"
-                  className="relative hover:bg-accent p-3 [&_svg]:!w-6 [&_svg]:!h-6"
-                  onClick={() => {
-                    if (!user) {
-                      return;
-                    }
-                  }}
-                >
-                  <Star className="h-6 w-6" />
-                  <span className="sr-only">View favorites</span>
-                </Button>
-              </DialogTrigger>
+              {user ? (
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="lg"
+                    className="relative hover:bg-accent p-3 [&_svg]:!w-6 [&_svg]:!h-6"
+                  >
+                    <Star className="h-6 w-6" />
+                    <span className="sr-only">View favorites</span>
+                  </Button>
+                </DialogTrigger>
+              ) : (
+                <SignInButton mode="modal">
+                  <Button
+                    variant="ghost"
+                    size="lg"
+                    className="relative hover:bg-accent p-3 [&_svg]:!w-6 [&_svg]:!h-6"
+                  >
+                    <Star className="h-6 w-6" />
+                    <span className="sr-only">View favorites</span>
+                  </Button>
+                </SignInButton>
+              )}
             </TooltipTrigger>
             <TooltipContent>
               {user ? "View favorites" : "Sign in to view favorites"}
