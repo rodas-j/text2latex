@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { useClerk } from "@clerk/remix";
 
 interface InputSectionProps {
   text: string;
@@ -32,6 +33,7 @@ export function InputSection({
   const example2Input = `sum from 1 to n of n/2`;
   const example3Input = `integral of x^2 + 2x + 1 from 0 to 1`;
   const saveConversion = useMutation(api.conversions.saveConversion);
+  const { user } = useClerk();
 
   // Create a ref to store the timeout ID
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -69,7 +71,7 @@ export function InputSection({
   // Save conversion when user copies output
   useEffect(() => {
     const handleCopy = async () => {
-      if (text.trim() && output.trim()) {
+      if (text.trim() && output.trim() && user) {
         await saveConversion({
           input: text,
           output: output,
@@ -79,11 +81,11 @@ export function InputSection({
 
     document.addEventListener("copy", handleCopy);
     return () => document.removeEventListener("copy", handleCopy);
-  }, [text, output, saveConversion]);
+  }, [text, output, saveConversion, user]);
 
   // Save conversion when user clears input
   const handleClear = async () => {
-    if (text.trim() && output.trim()) {
+    if (text.trim() && output.trim() && user) {
       await saveConversion({
         input: text,
         output: output,
