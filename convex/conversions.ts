@@ -154,7 +154,10 @@ export const convertToLatex = action({
   args: {
     text: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ data: string; conversionId: Id<"conversions"> | null }> => {
     // Input validation
     if (!args.text.trim()) {
       throw new Error("Input text must not be empty");
@@ -171,14 +174,8 @@ export const convertToLatex = action({
     }
 
     try {
-      // Initialize Gemini
+      // Initialize Gemini with the new client API
       const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash-lite-preview-02-05",
-        generationConfig: {
-          temperature: 0.1,
-        },
-      });
 
       // Construct prompt
       const fullPrompt = [
@@ -219,7 +216,15 @@ export const convertToLatex = action({
         "\n\nOUTPUT:",
       ].join("\n");
 
-      // Generate LaTeX
+      // Generate LaTeX using the new API
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.0-flash-lite",
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        },
+      });
+
       const result = await model.generateContent(fullPrompt);
       const response = await result.response;
       const latex = response.text();
