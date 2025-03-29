@@ -8,6 +8,7 @@ import { BottomActions } from "~/components/BottomActions";
 import { TabsComponent } from "~/components/TabsComponent";
 import { AlertCircle } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
+import { ConversionDrawer } from "~/components/ConversionDrawer";
 import { StarButton } from "~/components/StarButton";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAction } from "convex/react";
@@ -71,6 +72,14 @@ export default function Index() {
     }
   };
 
+  const handleHistorySelect = (input: string, output: string) => {
+    setSkipAutoTranslate(true);
+    setText(input);
+    setLatex(output);
+    // Reset skipAutoTranslate after a short delay to allow for future edits to trigger translation
+    setTimeout(() => setSkipAutoTranslate(false), 100);
+  };
+
   return (
     <div className="container mx-auto p-4">
       {errorText && (
@@ -116,6 +125,10 @@ export default function Index() {
           setCopied={setCopied}
           lastConversionId={lastConversionId}
         />
+      </div>
+
+      <div className="flex justify-center items-center mt-6 gap-4">
+        <ConversionDrawer onSelect={handleHistorySelect} />
       </div>
 
       {/* Promotional Section */}
