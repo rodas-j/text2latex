@@ -14,6 +14,7 @@ import { Twitter, Mail } from "lucide-react";
 import LatexHighlight from "./LatexHighlight";
 import { StarButton } from "./StarButton";
 import { Id } from "@/convex/_generated/dataModel";
+import { useAnalytics } from "~/hooks/useAnalytics";
 
 interface OutputSectionProps {
   latex: string;
@@ -31,10 +32,63 @@ export function OutputSection({
   lastConversionId,
 }: OutputSectionProps) {
   const [liked, setLiked] = React.useState<boolean | null>(null);
+  const [activeTab, setActiveTab] = React.useState("preview");
+  const { track } = useAnalytics();
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(latex);
+
+    track("output_copied", {
+      output_length: latex.length,
+      copy_method: "button",
+    });
+
+    if (!copied) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleTabChange = (newTab: string) => {
+    track("tab_switched", {
+      from_tab: activeTab,
+      to_tab: newTab,
+    });
+    setActiveTab(newTab);
+  };
+
+  const handleLike = (isLiked: boolean) => {
+    track("feedback_submitted", {
+      rating: isLiked ? 5 : 1,
+      has_comment: false,
+    });
+    setLiked(isLiked);
+  };
+
+  const handleShare = (platform: "twitter" | "email") => {
+    track("external_link_clicked", {
+      url: platform === "twitter" ? "https://twitter.com" : "mailto:",
+      link_text: `Share via ${platform}`,
+      location: "output_section",
+    });
+
+    if (platform === "twitter") {
+      window.open(
+        `https://twitter.com/intent/tweet?text=${encodeURIComponent(latex)}`,
+        "_blank"
+      );
+    } else {
+      window.location.href = `mailto:?body=${encodeURIComponent(latex)}`;
+    }
+  };
 
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="preview" className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
         <TabsContent value="preview" className="mt-0">
           <div className="border rounded-md p-4 min-h-[30vh] max-h-[30vh] overflow-auto">
             <Latex>{latex}</Latex>
@@ -65,17 +119,7 @@ export function OutputSection({
           </div>
           <div className="flex justify-between items-center">
             <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  navigator.clipboard.writeText(latex);
-                  if (!copied) {
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }
-                }}
-              >
+              <Button variant="ghost" size="icon" onClick={handleCopy}>
                 {copied ? (
                   <Check className="h-4 w-4" />
                 ) : (
@@ -90,7 +134,7 @@ export function OutputSection({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setLiked(true)}
+                onClick={() => handleLike(true)}
                 className={liked === true ? "text-green-500" : ""}
               >
                 <ThumbsUp
@@ -102,7 +146,7 @@ export function OutputSection({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setLiked(false)}
+                onClick={() => handleLike(false)}
                 className={liked === false ? "text-red-500" : ""}
               >
                 <ThumbsDown
@@ -122,14 +166,7 @@ export function OutputSection({
                     <Button
                       variant="ghost"
                       className="w-full justify-start"
-                      onClick={() => {
-                        window.open(
-                          `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                            latex
-                          )}`,
-                          "_blank"
-                        );
-                      }}
+                      onClick={() => handleShare("twitter")}
                     >
                       <Twitter className="h-4 w-4 mr-2" />
                       Twitter
@@ -137,11 +174,7 @@ export function OutputSection({
                     <Button
                       variant="ghost"
                       className="w-full justify-start"
-                      onClick={() => {
-                        window.location.href = `mailto:?body=${encodeURIComponent(
-                          latex
-                        )}`;
-                      }}
+                      onClick={() => handleShare("email")}
                     >
                       <Mail className="h-4 w-4 mr-2" />
                       Email

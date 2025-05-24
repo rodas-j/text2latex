@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useLocation } from "@remix-run/react";
-import { usePostHog } from "posthog-js/react";
 import { ClerkApp, useAuth } from "@clerk/remix";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
+import { useAnalytics } from "~/hooks/useAnalytics";
 
 import {
   Links,
@@ -42,14 +42,32 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-function App() {
+function AppContent() {
   const location = useLocation();
-  const posthog = usePostHog();
+  const { trackPageView } = useAnalytics();
 
   useEffect(() => {
-    // Track page views
-    posthog?.capture("$pageview");
-  }, [location, posthog]);
+    // Track page views with additional context
+    const pageName =
+      location.pathname === "/" ? "home" : location.pathname.slice(1);
+    trackPageView(pageName, {
+      search: location.search,
+      hash: location.hash,
+    });
+  }, [location, trackPageView]);
+
+  return (
+    <div className="flex min-h-full flex-col">
+      <Header />
+      <div className="flex-1">
+        <Outlet />
+      </div>
+      <Footer />
+    </div>
+  );
+}
+
+function App() {
   const convex = new ConvexReactClient(
     import.meta.env.VITE_CONVEX_URL as string
   );
@@ -65,11 +83,7 @@ function App() {
       <body className="flex min-h-full flex-col">
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
           <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-            <Header />
-            <div className="flex-1">
-              <Outlet />
-            </div>
-            <Footer />
+            <AppContent />
             <ScrollRestoration />
             <Scripts />
           </ThemeProvider>

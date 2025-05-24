@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 import { api } from "@/convex/_generated/api";
 import { useClerk, SignInButton } from "@clerk/remix";
+import { useAnalytics } from "~/hooks/useAnalytics";
 
 interface ConversionItem {
   _id: string;
@@ -33,14 +34,54 @@ export function ConversionDrawer({ onSelect }: ConversionDrawerProps) {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const { user } = useClerk();
+  const { track } = useAnalytics();
 
   const history = useQuery(api.conversions.getHistory);
   const favorites = useQuery(api.conversions.getFavorites);
 
-  const handleSelect = (item: ConversionItem) => {
+  const handleSelect = (
+    item: ConversionItem,
+    source: "history" | "favorites"
+  ) => {
+    track("history_item_selected", {
+      item_index: 0, // Could be enhanced with actual index
+      input_length: item.input.length,
+      output_length: item.output.length,
+    });
+
     onSelect(item.input, item.output);
     setIsHistoryOpen(false);
     setIsFavoritesOpen(false);
+  };
+
+  const handleHistoryOpen = () => {
+    if (!user) {
+      track("auth_sign_in_started", {
+        method: "history_access",
+      });
+      return;
+    }
+
+    track("history_opened", {
+      has_history: Boolean(history && history.length > 0),
+      history_count: history?.length || 0,
+    });
+    setIsHistoryOpen(true);
+  };
+
+  const handleFavoritesOpen = () => {
+    if (!user) {
+      track("auth_sign_in_started", {
+        method: "favorites_access",
+      });
+      return;
+    }
+
+    track("history_opened", {
+      has_history: Boolean(favorites && favorites.length > 0),
+      history_count: favorites?.length || 0,
+    });
+    setIsFavoritesOpen(true);
   };
 
   const formatDate = (timestamp: number) => {
@@ -73,6 +114,7 @@ export function ConversionDrawer({ onSelect }: ConversionDrawerProps) {
                     variant="ghost"
                     size="lg"
                     className="relative hover:bg-accent p-3 [&_svg]:!w-6 [&_svg]:!h-6"
+                    onClick={handleHistoryOpen}
                   >
                     <History className="h-6 w-6" />
                     <span className="sr-only">View history</span>
@@ -84,6 +126,7 @@ export function ConversionDrawer({ onSelect }: ConversionDrawerProps) {
                     variant="ghost"
                     size="lg"
                     className="relative hover:bg-accent p-3 [&_svg]:!w-6 [&_svg]:!h-6"
+                    onClick={handleHistoryOpen}
                   >
                     <History className="h-6 w-6" />
                     <span className="sr-only">View history</span>
@@ -105,7 +148,7 @@ export function ConversionDrawer({ onSelect }: ConversionDrawerProps) {
               <div
                 key={item._id}
                 className="rounded-lg border p-4 hover:bg-accent cursor-pointer"
-                onClick={() => handleSelect(item)}
+                onClick={() => handleSelect(item, "history")}
               >
                 <div className="font-medium">{item.input}</div>
                 <div className="mt-2 text-sm text-muted-foreground">
@@ -143,6 +186,7 @@ export function ConversionDrawer({ onSelect }: ConversionDrawerProps) {
                     variant="ghost"
                     size="lg"
                     className="relative hover:bg-accent p-3 [&_svg]:!w-6 [&_svg]:!h-6"
+                    onClick={handleFavoritesOpen}
                   >
                     <Star className="h-6 w-6" />
                     <span className="sr-only">View favorites</span>
@@ -154,6 +198,7 @@ export function ConversionDrawer({ onSelect }: ConversionDrawerProps) {
                     variant="ghost"
                     size="lg"
                     className="relative hover:bg-accent p-3 [&_svg]:!w-6 [&_svg]:!h-6"
+                    onClick={handleFavoritesOpen}
                   >
                     <Star className="h-6 w-6" />
                     <span className="sr-only">View favorites</span>
@@ -171,21 +216,23 @@ export function ConversionDrawer({ onSelect }: ConversionDrawerProps) {
             <DialogTitle>Favorites</DialogTitle>
           </DialogHeader>
           <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto">
-            {favorites?.map((item: ConversionItem) => (
-              <div
-                key={item._id}
-                className="rounded-lg border p-4 hover:bg-accent cursor-pointer"
-                onClick={() => handleSelect(item)}
-              >
-                <div className="font-medium">{item.input}</div>
-                <div className="mt-2 text-sm text-muted-foreground">
-                  {item.output}
+            {favorites
+              ?.filter((item): item is ConversionItem => item !== null)
+              .map((item: ConversionItem) => (
+                <div
+                  key={item._id}
+                  className="rounded-lg border p-4 hover:bg-accent cursor-pointer"
+                  onClick={() => handleSelect(item, "favorites")}
+                >
+                  <div className="font-medium">{item.input}</div>
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    {item.output}
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {formatDate(item.createdAt)}
+                  </div>
                 </div>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  {formatDate(item.createdAt)}
-                </div>
-              </div>
-            ))}
+              ))}
             {favorites?.length === 0 && (
               <div className="text-center text-muted-foreground">
                 No favorites yet

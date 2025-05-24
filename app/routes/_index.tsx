@@ -7,7 +7,7 @@ import { OutputSection } from "~/components/OutputSection";
 import { BottomActions } from "~/components/BottomActions";
 import { TabsComponent } from "~/components/TabsComponent";
 import { AlertCircle } from "lucide-react";
-import { usePostHog } from "posthog-js/react";
+import { useAnalytics } from "~/hooks/useAnalytics";
 import { ConversionDrawer } from "~/components/ConversionDrawer";
 import { StarButton } from "~/components/StarButton";
 import { Id } from "@/convex/_generated/dataModel";
@@ -26,7 +26,7 @@ export const meta: MetaFunction = () => {
 };
 
 export default function Index() {
-  const posthog = usePostHog();
+  const { track, trackError, withPerformanceTracking } = useAnalytics();
   const [copied, setCopied] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [isTextLong, setIsTextLong] = useState(false);
@@ -42,30 +42,68 @@ export default function Index() {
 
   const handleTranscribe = async () => {
     if (!text) return;
+
+    const conversionStartTime = Date.now();
+
+    // Track conversion start
+    track("conversion_started", {
+      input_length: text.length,
+      input_type: detectInputType(text),
+    });
+
     if (text.length > 5000) {
       setIsTextLong(true);
-      posthog?.capture("text_too_long", {
-        textLength: text.length,
+      track("conversion_failed", {
+        input_length: text.length,
+        error_message: "Text too long",
+        error_type: "length_limit",
       });
       return;
     }
+
     setIsTextLong(false);
     setErrorText("");
     setLoading(true);
 
     try {
-      const result = await convertToLatex({ text });
+      const result = await withPerformanceTracking(
+        () => convertToLatex({ text }),
+        "latex_conversion_api"
+      );
+
+      const conversionDuration = Date.now() - conversionStartTime;
+
       setLatex(result.data);
       setLastConversionId(result.conversionId);
-      posthog?.capture("latex_conversion_success", {
-        inputLength: text.length,
-        outputLength: result.data.length,
+
+      track("conversion_completed", {
+        input_length: text.length,
+        output_length: result.data.length,
+        duration_ms: conversionDuration,
+        success: true,
       });
     } catch (error) {
+      const conversionDuration = Date.now() - conversionStartTime;
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+
       setErrorText("Failed to convert text. Please try again.");
-      posthog?.capture("latex_conversion_error", {
-        error: error instanceof Error ? error.message : "Unknown error",
+
+      track("conversion_failed", {
+        input_length: text.length,
+        error_message: errorMessage,
+        error_type: "api_error",
       });
+
+      trackError(
+        error instanceof Error ? error : new Error(errorMessage),
+        "Index.handleTranscribe",
+        {
+          input_length: text.length,
+          duration_ms: conversionDuration,
+        }
+      );
+
       console.error("Error:", error);
     } finally {
       setLoading(false);
@@ -73,11 +111,36 @@ export default function Index() {
   };
 
   const handleHistorySelect = (input: string, output: string) => {
+    track("history_item_selected", {
+      item_index: 0, // We don't have index info, but we track the selection
+      input_length: input.length,
+      output_length: output.length,
+    });
+
     setSkipAutoTranslate(true);
     setText(input);
     setLatex(output);
     // Reset skipAutoTranslate after a short delay to allow for future edits to trigger translation
     setTimeout(() => setSkipAutoTranslate(false), 100);
+  };
+
+  const handleExternalLinkClick = (url: string, linkText: string) => {
+    track("external_link_clicked", {
+      url,
+      link_text: linkText,
+      location: "promotional_section",
+    });
+  };
+
+  // Helper function to detect input type
+  const detectInputType = (input: string): "text" | "math" | "code" => {
+    // Simple heuristics to detect input type
+    const mathPatterns = /[\$\\\(\)\[\]\{\}\^\_\=\+\-\*\/\<\>]/;
+    const codePatterns = /[{};\(\)\[\]]/;
+
+    if (mathPatterns.test(input) && input.includes("$")) return "math";
+    if (codePatterns.test(input)) return "code";
+    return "text";
   };
 
   return (
@@ -143,6 +206,12 @@ export default function Index() {
             target="_blank"
             rel="noopener noreferrer"
             className="flex flex-col items-center hover:opacity-90 transition-opacity"
+            onClick={() =>
+              handleExternalLinkClick(
+                "https://www.wordcanvas.app/",
+                "Word Canvas"
+              )
+            }
           >
             <div className="w-64 h-64 relative mb-4">
               <img
@@ -163,6 +232,12 @@ export default function Index() {
             target="_blank"
             rel="noopener noreferrer"
             className="flex flex-col items-center hover:opacity-90 transition-opacity"
+            onClick={() =>
+              handleExternalLinkClick(
+                "https://apps.apple.com/us/app/bechef-recipe-manager/id6743420060",
+                "BeChef"
+              )
+            }
           >
             <div className="w-64 h-64 relative mb-4">
               <img

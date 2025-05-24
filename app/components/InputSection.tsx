@@ -7,6 +7,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useClerk } from "@clerk/remix";
+import { useAnalytics } from "~/hooks/useAnalytics";
 
 interface InputSectionProps {
   text: string;
@@ -34,9 +35,15 @@ export function InputSection({
   const example3Input = `integral of x^2 + 2x + 1 from 0 to 1`;
   const saveConversion = useMutation(api.conversions.saveConversion);
   const { user } = useClerk();
+  const { track } = useAnalytics();
 
   // Create a ref to store the timeout ID
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const lastTextLength = useRef<number>(0);
+  const textChangeTracker = useRef<{
+    lastChange: number;
+    changeCount: number;
+  }>({ lastChange: 0, changeCount: 0 });
 
   // Custom debounce implementation using useEffect and useRef
   useEffect(() => {
@@ -52,6 +59,10 @@ export function InputSection({
 
       // Set a new timeout to call handleTranscribe after 750ms
       debounceTimeout.current = setTimeout(() => {
+        track("conversion_started", {
+          input_length: text.length,
+          input_type: "text", // Could be enhanced with type detection
+        });
         handleTranscribe();
       }, 1000);
     }
@@ -62,10 +73,38 @@ export function InputSection({
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [text, skipAutoTranslate]); // Re-run the effect when 'text' or 'skipAutoTranslate' changes
+  }, [text, skipAutoTranslate, track, handleTranscribe]); // Re-run the effect when 'text' or 'skipAutoTranslate' changes
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
+    const newText = e.target.value;
+    const currentTime = Date.now();
+
+    // Track text input changes with analytics
+    const lengthDiff = newText.length - lastTextLength.current;
+    const isPaste = Math.abs(lengthDiff) > 10; // Likely a paste if large change
+
+    // Track significant text changes
+    if (Math.abs(lengthDiff) > 0) {
+      textChangeTracker.current.changeCount++;
+      textChangeTracker.current.lastChange = currentTime;
+
+      track("text_input_changed", {
+        length: newText.length,
+        is_paste: isPaste,
+      });
+    }
+
+    lastTextLength.current = newText.length;
+    setText(newText);
+  };
+
+  // Handle paste events specifically
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pastedText = e.clipboardData.getData("text");
+    track("text_input_changed", {
+      length: text.length + pastedText.length,
+      is_paste: true,
+    });
   };
 
   // Save conversion when user copies output
@@ -76,15 +115,25 @@ export function InputSection({
           input: text,
           output: output,
         });
+
+        track("output_copied", {
+          output_length: output.length,
+          copy_method: "keyboard",
+        });
       }
     };
 
     document.addEventListener("copy", handleCopy);
     return () => document.removeEventListener("copy", handleCopy);
-  }, [text, output, saveConversion, user]);
+  }, [text, output, saveConversion, user, track]);
 
   // Save conversion when user clears input
   const handleClear = async () => {
+    track("text_input_changed", {
+      length: 0,
+      is_paste: false,
+    });
+
     if (text.trim() && output.trim() && user) {
       await saveConversion({
         input: text,
@@ -100,6 +149,7 @@ export function InputSection({
         <Textarea
           value={text}
           onChange={handleTextChange}
+          onPaste={handlePaste}
           placeholder={`Write normal text here... \n${exampleInput} \n${example2Input} \n${example3Input}`}
           className={cn(
             "min-h-[30vh] resize-none focus:outline-none pb-6",

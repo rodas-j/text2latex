@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useClerk, SignInButton } from "@clerk/remix";
+import { useAnalytics } from "~/hooks/useAnalytics";
 
 interface StarButtonProps {
   input: string;
@@ -20,6 +21,7 @@ interface StarButtonProps {
 
 export function StarButton({ input, output, conversionId }: StarButtonProps) {
   const { user } = useClerk();
+  const { track } = useAnalytics();
   const isFavorited = useQuery(
     api.conversions.isFavorited,
     conversionId ? { conversionId } : "skip"
@@ -30,6 +32,11 @@ export function StarButton({ input, output, conversionId }: StarButtonProps) {
 
   const handleClick = async () => {
     if (!user || !output) {
+      if (!user) {
+        track("auth_sign_in_started", {
+          method: "star_button",
+        });
+      }
       return;
     }
 
@@ -40,7 +47,12 @@ export function StarButton({ input, output, conversionId }: StarButtonProps) {
         targetId = await saveConversion({ input, output });
       }
 
-      await toggleFavorite({ conversionId: targetId });
+      const wasStarred = await toggleFavorite({ conversionId: targetId });
+
+      track("star_clicked", {
+        conversion_id: targetId,
+        is_starred: wasStarred,
+      });
     } catch (error) {
       console.error("Error saving/favoriting conversion:", error);
     }
