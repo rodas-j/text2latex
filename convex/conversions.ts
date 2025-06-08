@@ -47,64 +47,9 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
   },
 });
 
-// Helper function to check if user is blocked
-async function checkUserBlocked(ctx: any, userId: string) {
-  const user = await ctx.db
-    .query("users")
-    .withIndex("by_clerk_id", (q) => q.eq("clerkId", userId))
-    .first();
-
-  if (user?.isBlocked) {
-    throw new Error(
-      `User access blocked. Reason: ${
-        user.blockedReason || "Account suspended"
-      }`
-    );
-  }
-
-  return user;
-}
-
 // Helper function to get today's date string
 function getTodayDateString(): string {
   return new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-}
-
-// Helper function to manage anonymous session
-async function manageAnonymousSession(
-  ctx: any,
-  sessionId: string,
-  ipAddress?: string
-) {
-  const today = getTodayDateString();
-
-  let session = await ctx.db
-    .query("anonymousSessions")
-    .withIndex("by_session_id", (q) => q.eq("sessionId", sessionId))
-    .first();
-
-  if (!session) {
-    // Create new session
-    session = await ctx.db.insert("anonymousSessions", {
-      sessionId,
-      ipAddress,
-      conversionsToday: 0,
-      lastConversionAt: Date.now(),
-      createdAt: Date.now(),
-      dailyResetDate: today,
-    });
-    session = await ctx.db.get(session);
-  } else if (session.dailyResetDate !== today) {
-    // Reset daily count if it's a new day
-    await ctx.db.patch(session._id, {
-      conversionsToday: 0,
-      dailyResetDate: today,
-      lastConversionAt: Date.now(),
-    });
-    session = await ctx.db.get(session._id);
-  }
-
-  return session;
 }
 
 // Save a new conversion to history
@@ -303,30 +248,6 @@ export const saveAnonymousConversion = internalMutation({
   },
 });
 
-// Internal query to get remaining free conversions for anonymous users
-export const getRemainingFreeConversions = internalMutation({
-  args: {
-    sessionId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const session = await ctx.db
-      .query("anonymousSessions")
-      .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))
-      .first();
-
-    if (!session) {
-      return 5; // New session gets 5 free conversions
-    }
-
-    const today = getTodayDateString();
-    if (session.dailyResetDate !== today) {
-      return 5; // Reset for new day
-    }
-
-    return Math.max(0, 5 - session.conversionsToday);
-  },
-});
-
 // Convert text to LaTeX using Gemini API (supports both anonymous and authenticated users)
 export const convertToLatex = action({
   args: {
@@ -344,30 +265,14 @@ export const convertToLatex = action({
     if (isAuthenticated) {
       userId = identity.subject;
 
-      // Check if authenticated user is blocked
-      await checkUserBlocked(ctx, userId);
-
       // Rate limit authenticated users
       await rateLimiter.limit(ctx, "authenticatedConversions", {
         key: userId,
         throws: true,
       });
     } else {
-      // Handle anonymous user
+      // Handle anonymous user - let rate limiter throw its own error
       if (args.sessionId) {
-        // If sessionId provided, use the new daily limit system
-        const session = await manageAnonymousSession(
-          ctx,
-          args.sessionId,
-          args.ipAddress
-        );
-
-        if (session && session.conversionsToday >= 5) {
-          throw new Error(
-            "Daily limit reached. Please sign up to continue using the service."
-          );
-        }
-
         // Rate limit anonymous users (daily limit)
         await rateLimiter.limit(ctx, "anonymousConversions", {
           key: args.sessionId,
@@ -506,14 +411,7 @@ export const convertToLatex = action({
         data: trimmedLatex,
         conversionId,
         isAuthenticated,
-        remainingFreeConversions: isAuthenticated
-          ? null
-          : args.sessionId
-          ? await ctx.runQuery(
-              internal.conversions.getRemainingFreeConversions,
-              { sessionId: args.sessionId }
-            )
-          : 0,
+        remainingFreeConversions: isAuthenticated ? null : 5,
       };
     } catch (error) {
       throw new Error(

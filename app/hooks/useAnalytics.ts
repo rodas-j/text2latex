@@ -1,6 +1,6 @@
 import { usePostHog } from "posthog-js/react";
 import { useAuth, useUser } from "@clerk/remix";
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 
 // Define event types for better type safety
 export type AnalyticsEvent = {
@@ -18,7 +18,12 @@ export type AnalyticsEvent = {
   conversion_failed: {
     input_length: number;
     error_message: string;
-    error_type: "length_limit" | "api_error" | "network_error" | "unknown";
+    error_type:
+      | "length_limit"
+      | "api_error"
+      | "network_error"
+      | "rate_limit"
+      | "unknown";
   };
 
   // User interaction events
@@ -122,92 +127,101 @@ export function useAnalytics() {
   }, [isSignedIn, userId, user, posthog]);
 
   // Track event with proper typing
-  const track = <T extends keyof AnalyticsEvent>(
-    event: T,
-    properties?: AnalyticsEvent[T] & Record<string, any>
-  ) => {
-    if (!posthog) return;
+  const track = useCallback(
+    <T extends keyof AnalyticsEvent>(
+      event: T,
+      properties?: AnalyticsEvent[T] & Record<string, any>
+    ) => {
+      if (!posthog) return;
 
-    // Add common properties to all events
-    const commonProperties = {
-      timestamp: new Date().toISOString(),
-      user_agent: navigator.userAgent,
-      screen_resolution: `${screen.width}x${screen.height}`,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      language: navigator.language,
-      is_authenticated: isSignedIn,
-      user_id: userId,
-    };
+      // Add common properties to all events
+      const commonProperties = {
+        timestamp: new Date().toISOString(),
+        user_agent: navigator.userAgent,
+        screen_resolution: `${screen.width}x${screen.height}`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        language: navigator.language,
+        is_authenticated: isSignedIn,
+        user_id: userId,
+      };
 
-    posthog.capture(event, {
-      ...properties,
-      ...commonProperties,
-    });
-  };
+      posthog.capture(event, {
+        ...properties,
+        ...commonProperties,
+      });
+    },
+    [posthog, isSignedIn, userId]
+  );
 
   // Track page view with additional context
-  const trackPageView = (
-    page: string,
-    additionalProps?: Record<string, any>
-  ) => {
-    track("page_viewed", {
-      page,
-      referrer: document.referrer,
-      url: window.location.href,
-      ...additionalProps,
-    });
-  };
+  const trackPageView = useCallback(
+    (page: string, additionalProps?: Record<string, any>) => {
+      track("page_viewed", {
+        page,
+        referrer: document.referrer,
+        url: window.location.href,
+        ...additionalProps,
+      });
+    },
+    [track]
+  );
 
   // Track performance metrics
-  const trackPerformance = (
-    endpoint: string,
-    startTime: number,
-    success: boolean,
-    statusCode?: number
-  ) => {
-    const duration = Date.now() - startTime;
-    track("api_call_performance", {
-      endpoint,
-      duration_ms: duration,
-      success,
-      status_code: statusCode,
-    });
-  };
+  const trackPerformance = useCallback(
+    (
+      endpoint: string,
+      startTime: number,
+      success: boolean,
+      statusCode?: number
+    ) => {
+      const duration = Date.now() - startTime;
+      track("api_call_performance", {
+        endpoint,
+        duration_ms: duration,
+        success,
+        status_code: statusCode,
+      });
+    },
+    [track]
+  );
 
   // Track errors with context
-  const trackError = (
-    error: Error | string,
-    component?: string,
-    additionalContext?: Record<string, any>
-  ) => {
-    const errorMessage = error instanceof Error ? error.message : error;
-    const stackTrace = error instanceof Error ? error.stack : undefined;
+  const trackError = useCallback(
+    (
+      error: Error | string,
+      component?: string,
+      additionalContext?: Record<string, any>
+    ) => {
+      const errorMessage = error instanceof Error ? error.message : error;
+      const stackTrace = error instanceof Error ? error.stack : undefined;
 
-    track("error_occurred", {
-      error_type:
-        error instanceof Error ? error.constructor.name : "StringError",
-      error_message: errorMessage,
-      component,
-      stack_trace: stackTrace,
-      ...additionalContext,
-    });
-  };
+      track("error_occurred", {
+        error_type:
+          error instanceof Error ? error.constructor.name : "StringError",
+        error_message: errorMessage,
+        component,
+        stack_trace: stackTrace,
+        ...additionalContext,
+      });
+    },
+    [track]
+  );
 
   // Utility to measure function execution time
-  const withPerformanceTracking = async <T>(
-    fn: () => Promise<T>,
-    endpoint: string
-  ): Promise<T> => {
-    const startTime = Date.now();
-    try {
-      const result = await fn();
-      trackPerformance(endpoint, startTime, true);
-      return result;
-    } catch (error) {
-      trackPerformance(endpoint, startTime, false);
-      throw error;
-    }
-  };
+  const withPerformanceTracking = useCallback(
+    async <T>(fn: () => Promise<T>, endpoint: string): Promise<T> => {
+      const startTime = Date.now();
+      try {
+        const result = await fn();
+        trackPerformance(endpoint, startTime, true);
+        return result;
+      } catch (error) {
+        trackPerformance(endpoint, startTime, false);
+        throw error;
+      }
+    },
+    [trackPerformance]
+  );
 
   return {
     track,

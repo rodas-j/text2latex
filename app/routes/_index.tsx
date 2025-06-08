@@ -1,6 +1,7 @@
 import type { MetaFunction } from "@remix-run/node";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Header } from "~/components/Header";
 import { InputSection } from "~/components/InputSection";
 import { OutputSection } from "~/components/OutputSection";
@@ -13,7 +14,7 @@ import { StarButton } from "~/components/StarButton";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useAuth } from "@clerk/remix";
+import { useAuth, SignInButton } from "@clerk/remix";
 
 export const meta: MetaFunction = () => {
   return [
@@ -31,6 +32,7 @@ export default function Index() {
   const { isSignedIn } = useAuth();
   const [copied, setCopied] = useState(false);
   const [errorText, setErrorText] = useState("");
+  const [isRateLimitError, setIsRateLimitError] = useState(false);
   const [isTextLong, setIsTextLong] = useState(false);
   const [text, setText] = useState("");
   const [latex, setLatex] = useState("");
@@ -42,7 +44,21 @@ export default function Index() {
 
   const convertToLatex = useAction(api.conversions.convertToLatex);
 
-  const handleTranscribe = async () => {
+  // Helper function to detect input type
+  const detectInputType = useCallback(
+    (input: string): "text" | "math" | "code" => {
+      // Simple heuristics to detect input type
+      const mathPatterns = /[\$\\\(\)\[\]\{\}\^\_\=\+\-\*\/\<\>]/;
+      const codePatterns = /[{};\(\)\[\]]/;
+
+      if (mathPatterns.test(input) && input.includes("$")) return "math";
+      if (codePatterns.test(input)) return "code";
+      return "text";
+    },
+    []
+  );
+
+  const handleTranscribe = useCallback(async () => {
     if (!text) return;
 
     const conversionStartTime = Date.now();
@@ -65,6 +81,7 @@ export default function Index() {
 
     setIsTextLong(false);
     setErrorText("");
+    setIsRateLimitError(false);
     setLoading(true);
 
     try {
@@ -102,13 +119,45 @@ export default function Index() {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
-      setErrorText("Failed to convert text. Please try again.");
+      // Debug: Log the actual error message to see what we're getting
+      console.log("Actual error message:", errorMessage);
 
-      track("conversion_failed", {
-        input_length: text.length,
-        error_message: errorMessage,
-        error_type: "api_error",
-      });
+      // Check if it's a rate limit error - be more comprehensive
+      const lowerErrorMessage = errorMessage.toLowerCase();
+      const isRateLimit =
+        lowerErrorMessage.includes("rate limit") ||
+        lowerErrorMessage.includes("too many requests") ||
+        lowerErrorMessage.includes("limit exceeded") ||
+        lowerErrorMessage.includes("rate limited") ||
+        lowerErrorMessage.includes("quota exceeded") ||
+        lowerErrorMessage.includes("daily limit") ||
+        lowerErrorMessage.includes("requests per") ||
+        lowerErrorMessage.includes("429") ||
+        errorMessage.includes("RateLimitError");
+
+      if (isRateLimit || !isSignedIn) {
+        // For anonymous users, assume most errors are rate limit related since they have strict limits
+        const friendlyMessage = isSignedIn
+          ? "You're making requests too quickly. Please wait a moment and try again."
+          : "You've reached your daily limit of 5 free conversions. Sign up to get unlimited conversions!";
+        setErrorText(friendlyMessage);
+        setIsRateLimitError(true);
+
+        track("conversion_failed", {
+          input_length: text.length,
+          error_message: errorMessage,
+          error_type: "rate_limit",
+        });
+      } else {
+        setErrorText("Failed to convert text. Please try again.");
+        setIsRateLimitError(false);
+
+        track("conversion_failed", {
+          input_length: text.length,
+          error_message: errorMessage,
+          error_type: "api_error",
+        });
+      }
 
       trackError(
         error instanceof Error ? error : new Error(errorMessage),
@@ -123,7 +172,15 @@ export default function Index() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    text,
+    isSignedIn,
+    convertToLatex,
+    withPerformanceTracking,
+    track,
+    trackError,
+    detectInputType,
+  ]);
 
   const handleHistorySelect = (input: string, output: string) => {
     track("history_item_selected", {
@@ -147,27 +204,35 @@ export default function Index() {
     });
   };
 
-  // Helper function to detect input type
-  const detectInputType = (input: string): "text" | "math" | "code" => {
-    // Simple heuristics to detect input type
-    const mathPatterns = /[\$\\\(\)\[\]\{\}\^\_\=\+\-\*\/\<\>]/;
-    const codePatterns = /[{};\(\)\[\]]/;
-
-    if (mathPatterns.test(input) && input.includes("$")) return "math";
-    if (codePatterns.test(input)) return "code";
-    return "text";
-  };
-
   return (
     <div className="container mx-auto p-4">
       {errorText && (
         <Alert variant="destructive" className="mb-4">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            <div>
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{errorText}</AlertDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <div>
+                <AlertTitle>
+                  {isRateLimitError ? "Daily Limit Reached" : "Error"}
+                </AlertTitle>
+                <AlertDescription>{errorText}</AlertDescription>
+              </div>
             </div>
+            {isRateLimitError && !isSignedIn && (
+              <SignInButton mode="modal">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    track("auth_sign_in_started", {
+                      method: "rate_limit_error",
+                    })
+                  }
+                >
+                  Sign Up for Free
+                </Button>
+              </SignInButton>
+            )}
           </div>
         </Alert>
       )}
