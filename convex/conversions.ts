@@ -354,28 +354,34 @@ export const convertToLatex = action({
       });
     } else {
       // Handle anonymous user
-      if (!args.sessionId) {
-        throw new Error("Session ID required for anonymous users");
-      }
-
-      // Manage anonymous session and check daily limits
-      const session = await manageAnonymousSession(
-        ctx,
-        args.sessionId,
-        args.ipAddress
-      );
-
-      if (session && session.conversionsToday >= 5) {
-        throw new Error(
-          "Daily limit reached. Please sign up to continue using the service."
+      if (args.sessionId) {
+        // If sessionId provided, use the new daily limit system
+        const session = await manageAnonymousSession(
+          ctx,
+          args.sessionId,
+          args.ipAddress
         );
-      }
 
-      // Rate limit anonymous users (daily limit)
-      await rateLimiter.limit(ctx, "anonymousConversions", {
-        key: args.sessionId,
-        throws: true,
-      });
+        if (session && session.conversionsToday >= 5) {
+          throw new Error(
+            "Daily limit reached. Please sign up to continue using the service."
+          );
+        }
+
+        // Rate limit anonymous users (daily limit)
+        await rateLimiter.limit(ctx, "anonymousConversions", {
+          key: args.sessionId,
+          throws: true,
+        });
+      } else {
+        // Fallback for anonymous users without sessionId (temporary)
+        // Use IP-based rate limiting as a basic protection
+        const ipKey = args.ipAddress || "unknown";
+        await rateLimiter.limit(ctx, "anonymousConversions", {
+          key: ipKey,
+          throws: true,
+        });
+      }
     }
 
     // Global rate limit for all users
@@ -471,16 +477,28 @@ export const convertToLatex = action({
           }
         );
       } else {
-        // Save for anonymous users and update session count
-        conversionId = await ctx.runMutation(
-          internal.conversions.saveAnonymousConversion,
-          {
-            sessionId: args.sessionId!,
-            input: args.text,
-            output: trimmedLatex,
-            ipAddress: args.ipAddress,
-          }
-        );
+        // Save for anonymous users
+        if (args.sessionId) {
+          // Save with session tracking
+          conversionId = await ctx.runMutation(
+            internal.conversions.saveAnonymousConversion,
+            {
+              sessionId: args.sessionId,
+              input: args.text,
+              output: trimmedLatex,
+              ipAddress: args.ipAddress,
+            }
+          );
+        } else {
+          // Fallback: save without session tracking
+          conversionId = await ctx.runMutation(
+            internal.conversions.saveConversionResult,
+            {
+              input: args.text,
+              output: trimmedLatex,
+            }
+          );
+        }
       }
 
       // Return both the latex and the conversion ID

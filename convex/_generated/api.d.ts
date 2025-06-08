@@ -11,6 +11,7 @@
 import type * as admin from "../admin.js";
 import type * as clerk from "../clerk.js";
 import type * as conversions from "../conversions.js";
+import type * as emergency_admin from "../emergency_admin.js";
 import type * as http from "../http.js";
 
 import type {
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   clerk: typeof clerk;
   conversions: typeof conversions;
+  emergency_admin: typeof emergency_admin;
   http: typeof http;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

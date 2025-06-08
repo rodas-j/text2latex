@@ -13,6 +13,7 @@ import { StarButton } from "~/components/StarButton";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useAuth } from "@clerk/remix";
 
 export const meta: MetaFunction = () => {
   return [
@@ -27,6 +28,7 @@ export const meta: MetaFunction = () => {
 
 export default function Index() {
   const { track, trackError, withPerformanceTracking } = useAnalytics();
+  const { isSignedIn } = useAuth();
   const [copied, setCopied] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [isTextLong, setIsTextLong] = useState(false);
@@ -66,8 +68,21 @@ export default function Index() {
     setLoading(true);
 
     try {
+      // Prepare conversion parameters
+      const conversionParams: { text: string; sessionId?: string } = { text };
+
+      // For anonymous users, generate and include sessionId
+      if (!isSignedIn) {
+        let sessionId = localStorage.getItem("sessionId");
+        if (!sessionId) {
+          sessionId = crypto.randomUUID();
+          localStorage.setItem("sessionId", sessionId);
+        }
+        conversionParams.sessionId = sessionId;
+      }
+
       const result = await withPerformanceTracking(
-        () => convertToLatex({ text }),
+        () => convertToLatex(conversionParams),
         "latex_conversion_api"
       );
 
