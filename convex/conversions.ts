@@ -2,7 +2,110 @@ import { v } from "convex/values";
 import { mutation, query, action, internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { internal } from "./_generated/api";
+import { internal, components } from "./_generated/api";
+import { RateLimiter, MINUTE, HOUR } from "@convex-dev/rate-limiter";
+
+// Define time constants
+const DAY = 24 * HOUR;
+
+// Rate limiter configuration
+const rateLimiter = new RateLimiter(components.rateLimiter, {
+  // Anonymous user limits (daily)
+  anonymousConversions: {
+    kind: "fixed window",
+    rate: 5,
+    period: DAY,
+    capacity: 5,
+  },
+
+  // Authenticated user limits (per minute)
+  saveConversion: {
+    kind: "token bucket",
+    rate: 20,
+    period: MINUTE,
+    capacity: 30,
+  },
+  toggleFavorite: {
+    kind: "token bucket",
+    rate: 10,
+    period: MINUTE,
+    capacity: 15,
+  },
+  authenticatedConversions: {
+    kind: "token bucket",
+    rate: 10,
+    period: MINUTE,
+    capacity: 15,
+  },
+
+  // Global rate limits for expensive operations
+  globalConversion: {
+    kind: "fixed window",
+    rate: 200,
+    period: MINUTE,
+    shards: 5,
+  },
+});
+
+// Helper function to check if user is blocked
+async function checkUserBlocked(ctx: any, userId: string) {
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_clerk_id", (q) => q.eq("clerkId", userId))
+    .first();
+
+  if (user?.isBlocked) {
+    throw new Error(
+      `User access blocked. Reason: ${
+        user.blockedReason || "Account suspended"
+      }`
+    );
+  }
+
+  return user;
+}
+
+// Helper function to get today's date string
+function getTodayDateString(): string {
+  return new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+}
+
+// Helper function to manage anonymous session
+async function manageAnonymousSession(
+  ctx: any,
+  sessionId: string,
+  ipAddress?: string
+) {
+  const today = getTodayDateString();
+
+  let session = await ctx.db
+    .query("anonymousSessions")
+    .withIndex("by_session_id", (q) => q.eq("sessionId", sessionId))
+    .first();
+
+  if (!session) {
+    // Create new session
+    session = await ctx.db.insert("anonymousSessions", {
+      sessionId,
+      ipAddress,
+      conversionsToday: 0,
+      lastConversionAt: Date.now(),
+      createdAt: Date.now(),
+      dailyResetDate: today,
+    });
+    session = await ctx.db.get(session);
+  } else if (session.dailyResetDate !== today) {
+    // Reset daily count if it's a new day
+    await ctx.db.patch(session._id, {
+      conversionsToday: 0,
+      dailyResetDate: today,
+      lastConversionAt: Date.now(),
+    });
+    session = await ctx.db.get(session._id);
+  }
+
+  return session;
+}
 
 // Save a new conversion to history
 export const saveConversion = mutation({
@@ -17,10 +120,18 @@ export const saveConversion = mutation({
     }
 
     const userId = identity.subject;
+
+    // Rate limit per user
+    await rateLimiter.limit(ctx, "saveConversion", {
+      key: userId,
+      throws: true,
+    });
+
     return await ctx.db.insert("conversions", {
       userId,
       input: args.input,
       output: args.output,
+      isAnonymous: false, // This is an authenticated user conversion
       createdAt: Date.now(),
     });
   },
@@ -55,6 +166,12 @@ export const toggleFavorite = mutation({
     }
 
     const userId = identity.subject;
+
+    // Rate limit per user
+    await rateLimiter.limit(ctx, "toggleFavorite", {
+      key: userId,
+      throws: true,
+    });
 
     // Check if already favorited
     const existing = await ctx.db
@@ -144,17 +261,128 @@ export const saveConversionResult = internalMutation({
       userId: identity.subject,
       input: args.input,
       output: args.output,
+      isAnonymous: false, // This is an authenticated user conversion
       createdAt: Date.now(),
     });
   },
 });
 
-// Convert text to LaTeX using Gemini API
+// Internal mutation to save anonymous conversion result
+export const saveAnonymousConversion = internalMutation({
+  args: {
+    sessionId: v.string(),
+    input: v.string(),
+    output: v.string(),
+    ipAddress: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Save the conversion
+    const conversionId = await ctx.db.insert("conversions", {
+      sessionId: args.sessionId,
+      input: args.input,
+      output: args.output,
+      isAnonymous: true,
+      createdAt: Date.now(),
+    });
+
+    // Update session conversion count
+    const session = await ctx.db
+      .query("anonymousSessions")
+      .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))
+      .first();
+
+    if (session) {
+      await ctx.db.patch(session._id, {
+        conversionsToday: session.conversionsToday + 1,
+        lastConversionAt: Date.now(),
+        ipAddress: args.ipAddress || session.ipAddress,
+      });
+    }
+
+    return conversionId;
+  },
+});
+
+// Internal query to get remaining free conversions for anonymous users
+export const getRemainingFreeConversions = internalMutation({
+  args: {
+    sessionId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const session = await ctx.db
+      .query("anonymousSessions")
+      .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))
+      .first();
+
+    if (!session) {
+      return 5; // New session gets 5 free conversions
+    }
+
+    const today = getTodayDateString();
+    if (session.dailyResetDate !== today) {
+      return 5; // Reset for new day
+    }
+
+    return Math.max(0, 5 - session.conversionsToday);
+  },
+});
+
+// Convert text to LaTeX using Gemini API (supports both anonymous and authenticated users)
 export const convertToLatex = action({
   args: {
     text: v.string(),
+    sessionId: v.optional(v.string()), // For anonymous users
+    ipAddress: v.optional(v.string()), // For additional tracking
   },
   handler: async (ctx, args) => {
+    // Check authentication status
+    const identity = await ctx.auth.getUserIdentity();
+    const isAuthenticated = !!identity;
+
+    let userId: string | undefined = undefined;
+
+    if (isAuthenticated) {
+      userId = identity.subject;
+
+      // Check if authenticated user is blocked
+      await checkUserBlocked(ctx, userId);
+
+      // Rate limit authenticated users
+      await rateLimiter.limit(ctx, "authenticatedConversions", {
+        key: userId,
+        throws: true,
+      });
+    } else {
+      // Handle anonymous user
+      if (!args.sessionId) {
+        throw new Error("Session ID required for anonymous users");
+      }
+
+      // Manage anonymous session and check daily limits
+      const session = await manageAnonymousSession(
+        ctx,
+        args.sessionId,
+        args.ipAddress
+      );
+
+      if (session && session.conversionsToday >= 5) {
+        throw new Error(
+          "Daily limit reached. Please sign up to continue using the service."
+        );
+      }
+
+      // Rate limit anonymous users (daily limit)
+      await rateLimiter.limit(ctx, "anonymousConversions", {
+        key: args.sessionId,
+        throws: true,
+      });
+    }
+
+    // Global rate limit for all users
+    await rateLimiter.limit(ctx, "globalConversion", {
+      throws: true,
+    });
+
     // Input validation
     if (!args.text.trim()) {
       throw new Error("Input text must not be empty");
@@ -230,19 +458,44 @@ export const convertToLatex = action({
 
       const trimmedLatex = latex.trim();
 
-      // Save the conversion and get the ID
-      const conversionId = await ctx.runMutation(
-        internal.conversions.saveConversionResult,
-        {
-          input: args.text,
-          output: trimmedLatex,
-        }
-      );
+      // Save the conversion
+      let conversionId: Id<"conversions"> | null = null;
+
+      if (isAuthenticated) {
+        // Save for authenticated users
+        conversionId = await ctx.runMutation(
+          internal.conversions.saveConversionResult,
+          {
+            input: args.text,
+            output: trimmedLatex,
+          }
+        );
+      } else {
+        // Save for anonymous users and update session count
+        conversionId = await ctx.runMutation(
+          internal.conversions.saveAnonymousConversion,
+          {
+            sessionId: args.sessionId!,
+            input: args.text,
+            output: trimmedLatex,
+            ipAddress: args.ipAddress,
+          }
+        );
+      }
 
       // Return both the latex and the conversion ID
       return {
         data: trimmedLatex,
         conversionId,
+        isAuthenticated,
+        remainingFreeConversions: isAuthenticated
+          ? null
+          : args.sessionId
+          ? await ctx.runQuery(
+              internal.conversions.getRemainingFreeConversions,
+              { sessionId: args.sessionId }
+            )
+          : 0,
       };
     } catch (error) {
       throw new Error(

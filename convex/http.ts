@@ -1,8 +1,20 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internal, components } from "./_generated/api";
 import type { WebhookEvent } from "@clerk/backend";
 import { Webhook } from "svix";
+import { RateLimiter, MINUTE } from "@convex-dev/rate-limiter";
+
+// Rate limiter for HTTP endpoints
+const rateLimiter = new RateLimiter(components.rateLimiter, {
+  // Global rate limit for webhook endpoints
+  webhookRequests: {
+    kind: "fixed window",
+    rate: 200,
+    period: MINUTE,
+    shards: 3,
+  },
+});
 
 const http = httpRouter();
 
@@ -10,6 +22,11 @@ http.route({
   path: "/clerk-users-webhook",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
+    // Rate limit webhook requests
+    await rateLimiter.limit(ctx, "webhookRequests", {
+      throws: true,
+    });
+
     const event = await validateRequest(request);
     if (!event) {
       return new Response("Error occurred", { status: 400 });
