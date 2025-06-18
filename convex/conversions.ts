@@ -82,20 +82,25 @@ export const saveConversion = mutation({
   },
 });
 
-// Get user's conversion history
+// Get user's conversion history with limit
 export const getHistory = query({
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return [];
     }
 
     const userId = identity.subject;
+    const limit = Math.min(args.limit || 20, 50); // Default 20, max 50
+
     return await ctx.db
       .query("conversions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
-      .collect();
+      .take(limit);
   },
 });
 
@@ -142,19 +147,25 @@ export const toggleFavorite = mutation({
   },
 });
 
-// Get user's favorite conversions
+// Get user's favorite conversions with limit
 export const getFavorites = query({
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return [];
     }
 
     const userId = identity.subject;
+    const limit = Math.min(args.limit || 20, 50); // Default 20, max 50
+
     const favorites = await ctx.db
       .query("favorites")
       .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+      .order("desc")
+      .take(limit);
 
     // Get the actual conversion details for each favorite
     const conversions = await Promise.all(

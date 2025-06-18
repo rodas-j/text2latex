@@ -18,12 +18,17 @@ import {
 import { api } from "@/convex/_generated/api";
 import { useClerk, SignInButton } from "@clerk/remix";
 import { useAnalytics } from "~/hooks/useAnalytics";
+import { Id } from "@/convex/_generated/dataModel";
 
 interface ConversionItem {
-  _id: string;
+  _id: Id<"conversions">;
+  _creationTime: number;
   input: string;
   output: string;
   createdAt: number;
+  userId?: string;
+  sessionId?: string;
+  isAnonymous?: boolean;
 }
 
 interface ConversionDrawerProps {
@@ -36,8 +41,8 @@ export function ConversionDrawer({ onSelect }: ConversionDrawerProps) {
   const { user } = useClerk();
   const { track } = useAnalytics();
 
-  const history = useQuery(api.conversions.getHistory);
-  const favorites = useQuery(api.conversions.getFavorites);
+  const history = useQuery(api.conversions.getHistory, { limit: 20 });
+  const favorites = useQuery(api.conversions.getFavorites, { limit: 20 });
 
   const handleSelect = (
     item: ConversionItem,
@@ -217,8 +222,11 @@ export function ConversionDrawer({ onSelect }: ConversionDrawerProps) {
           </DialogHeader>
           <div className="mt-4 space-y-4 max-h-[60vh] overflow-y-auto">
             {favorites
-              ?.filter((item): item is ConversionItem => item !== null)
-              .map((item: ConversionItem) => (
+              ?.filter(
+                (item): item is ConversionItem =>
+                  item !== null && item !== undefined
+              )
+              .map((item) => (
                 <div
                   key={item._id}
                   className="rounded-lg border p-4 hover:bg-accent cursor-pointer"

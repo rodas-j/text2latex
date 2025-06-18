@@ -135,9 +135,12 @@ export const unblockUser = mutation({
   },
 });
 
-// Get all blocked users
+// Get blocked users with limit
 export const getBlockedUsers = query({
-  handler: async (ctx) => {
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
@@ -149,14 +152,16 @@ export const getBlockedUsers = query({
 
     if (!adminUser?.isAdmin) throw new Error("Admin access required");
 
+    const limit = Math.min(args.limit || 50, 100); // Default 50, max 100
+
     return await ctx.db
       .query("users")
       .withIndex("by_blocked", (q) => q.eq("isBlocked", true))
-      .collect();
+      .take(limit);
   },
 });
 
-// Get admin action logs
+// Get admin action logs with limit
 export const getAdminLogs = query({
   args: {
     limit: v.optional(v.number()),
@@ -174,19 +179,23 @@ export const getAdminLogs = query({
 
     if (!adminUser?.isAdmin) throw new Error("Admin access required");
 
-    let query = ctx.db.query("adminActions");
+    const limit = Math.min(args.limit || 50, 100); // Default 50, max 100
 
     if (args.targetUserId) {
-      query = query.withIndex("by_target_user", (q) =>
-        q.eq("targetUserId", args.targetUserId)
-      );
+      return await ctx.db
+        .query("adminActions")
+        .withIndex("by_target_user", (q) =>
+          q.eq("targetUserId", args.targetUserId)
+        )
+        .order("desc")
+        .take(limit);
     } else {
-      query = query.withIndex("by_created_at");
+      return await ctx.db
+        .query("adminActions")
+        .withIndex("by_created_at")
+        .order("desc")
+        .take(limit);
     }
-
-    const logs = await query.order("desc").take(args.limit || 50);
-
-    return logs;
   },
 });
 
