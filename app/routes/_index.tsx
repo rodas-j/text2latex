@@ -275,61 +275,34 @@ export default function Index() {
       </div>
 
       {/* Promotional Section */}
-      <div className="mt-16 mb-8">
+      <div className="mt-16 mb-8 ">
         <h2 className="text-2xl font-bold text-center mb-8">
-          Check out our other apps
+          We launched a new game and would love your feedback!
         </h2>
-        <div className="grid md:grid-cols-2 gap-12">
-          {/* Word Canvas */}
+        <div className="flex justify-center">
+          {/* Guessipe */}
           <a
-            href="https://www.wordcanvas.app/"
+            href="https://www.guessipe.app/"
             target="_blank"
             rel="noopener noreferrer"
             className="flex flex-col items-center hover:opacity-90 transition-opacity"
             onClick={() =>
               handleExternalLinkClick(
-                "https://www.wordcanvas.app/",
+                "https://www.guessipe.app/",
                 "Word Canvas"
               )
             }
           >
             <div className="w-64 h-64 relative mb-4">
               <img
-                src="/word-canvas-logo 2.png"
-                alt="Word Canvas"
+                src="/guessipe-logo-market.jpg"
+                alt="Guessipe"
                 className="w-full h-full object-contain"
               />
             </div>
-            <h3 className="text-xl font-semibold text-center">Word Canvas</h3>
+            <h3 className="text-xl font-semibold text-center">Guessipe</h3>
             <p className="text-center text-gray-700 dark:text-gray-300 mt-2">
-              Photoshop your images with natural language
-            </p>
-          </a>
-
-          {/* BeChef */}
-          <a
-            href="https://apps.apple.com/us/app/bechef-recipe-manager/id6743420060"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col items-center hover:opacity-90 transition-opacity"
-            onClick={() =>
-              handleExternalLinkClick(
-                "https://apps.apple.com/us/app/bechef-recipe-manager/id6743420060",
-                "BeChef"
-              )
-            }
-          >
-            <div className="w-64 h-64 relative mb-4">
-              <img
-                src="/bechef-logo-market.png"
-                alt="BeChef Recipe Manager"
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <h3 className="text-xl font-semibold text-center">BeChef</h3>
-            <p className="text-center text-gray-700 dark:text-gray-300 mt-2">
-              Unblock Recipes Hidden in Plain Sight with the most powerful
-              recipe manager on the internet
+              Guess the ingredients of classic recipes!
             </p>
           </a>
         </div>
