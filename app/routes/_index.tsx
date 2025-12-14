@@ -1,5 +1,5 @@
 import type { MetaFunction } from "@remix-run/node";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Header } from "~/components/Header";
@@ -7,7 +7,7 @@ import { InputSection } from "~/components/InputSection";
 import { OutputSection } from "~/components/OutputSection";
 import { BottomActions } from "~/components/BottomActions";
 import { TabsComponent } from "~/components/TabsComponent";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Zap } from "lucide-react";
 import { useAnalytics } from "~/hooks/useAnalytics";
 import { ConversionDrawer } from "~/components/ConversionDrawer";
 import { StarButton } from "~/components/StarButton";
@@ -15,6 +15,9 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth, SignInButton } from "@clerk/remix";
+import { usePaywall } from "~/hooks/usePaywall";
+import { UpgradeModal } from "~/components/UpgradeModal";
+import { UsageIndicator } from "~/components/UsageIndicator";
 
 export const meta: MetaFunction = () => {
   return [
@@ -41,8 +44,34 @@ export default function Index() {
   const [lastConversionId, setLastConversionId] = useState<
     Id<"conversions"> | undefined
   >(undefined);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isPaywallLimitError, setIsPaywallLimitError] = useState(false);
 
   const convertToLatex = useAction(api.conversions.convertToLatex);
+
+  // Paywall hook for feature flag and usage tracking
+  const {
+    paywallEnabled,
+    isPro,
+    remainingConversions,
+    dailyLimit,
+    maxInputLength,
+    isAuthenticated,
+  } = usePaywall();
+
+  // Check for upgrade success/cancelled in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const upgradeStatus = params.get("upgrade");
+    if (upgradeStatus === "success") {
+      track("upgrade_completed", { source: "checkout_redirect" });
+      // Clean up URL
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (upgradeStatus === "cancelled") {
+      track("upgrade_cancelled", { source: "checkout_redirect" });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [track]);
 
   // Helper function to detect input type
   const detectInputType = useCallback(
@@ -67,14 +96,20 @@ export default function Index() {
     track("conversion_started", {
       input_length: text.length,
       input_type: detectInputType(text),
+      paywall_enabled: paywallEnabled,
+      is_pro: isPro,
     });
 
-    if (text.length > 5000) {
+    // Use dynamic max input length based on subscription tier
+    const effectiveMaxLength = paywallEnabled ? maxInputLength : 5000;
+
+    if (text.length > effectiveMaxLength) {
       setIsTextLong(true);
       track("conversion_failed", {
         input_length: text.length,
         error_message: "Text too long",
         error_type: "length_limit",
+        max_length: effectiveMaxLength,
       });
       return;
     }
@@ -82,11 +117,19 @@ export default function Index() {
     setIsTextLong(false);
     setErrorText("");
     setIsRateLimitError(false);
+    setIsPaywallLimitError(false);
     setLoading(true);
 
     try {
       // Prepare conversion parameters
-      const conversionParams: { text: string; sessionId?: string } = { text };
+      const conversionParams: {
+        text: string;
+        sessionId?: string;
+        paywallEnabled?: boolean;
+      } = {
+        text,
+        paywallEnabled,
+      };
 
       // For anonymous users, generate and include sessionId
       if (!isSignedIn) {
@@ -113,30 +156,46 @@ export default function Index() {
         output_length: result.data.length,
         duration_ms: conversionDuration,
         success: true,
+        is_pro: result.isPro,
+        remaining_conversions: result.remainingFreeConversions,
       });
     } catch (error) {
       const conversionDuration = Date.now() - conversionStartTime;
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
-      // Debug: Log the actual error message to see what we're getting
       console.log("Actual error message:", errorMessage);
 
-      // Check if it's a rate limit error - be more comprehensive
       const lowerErrorMessage = errorMessage.toLowerCase();
+
+      // Check for paywall/daily limit errors
+      const isPaywallLimit =
+        lowerErrorMessage.includes("daily limit reached") ||
+        lowerErrorMessage.includes("upgrade to pro");
+
+      // Check if it's a rate limit error
       const isRateLimit =
         lowerErrorMessage.includes("rate limit") ||
         lowerErrorMessage.includes("too many requests") ||
         lowerErrorMessage.includes("limit exceeded") ||
         lowerErrorMessage.includes("rate limited") ||
         lowerErrorMessage.includes("quota exceeded") ||
-        lowerErrorMessage.includes("daily limit") ||
         lowerErrorMessage.includes("requests per") ||
         lowerErrorMessage.includes("429") ||
         errorMessage.includes("RateLimitError");
 
-      if (isRateLimit || !isSignedIn) {
-        // For anonymous users, assume most errors are rate limit related since they have strict limits
+      if (isPaywallLimit) {
+        // Paywall limit - show upgrade modal
+        setErrorText(errorMessage);
+        setIsPaywallLimitError(true);
+        setShowUpgradeModal(true);
+
+        track("conversion_failed", {
+          input_length: text.length,
+          error_message: errorMessage,
+          error_type: "paywall_limit",
+        });
+      } else if (isRateLimit || !isSignedIn) {
         const friendlyMessage = isSignedIn
           ? "You're making requests too quickly. Please wait a moment and try again."
           : "You've reached your daily limit of 5 free conversions. Sign up to get unlimited conversions!";
@@ -180,6 +239,9 @@ export default function Index() {
     track,
     trackError,
     detectInputType,
+    paywallEnabled,
+    isPro,
+    maxInputLength,
   ]);
 
   const handleHistorySelect = (input: string, output: string) => {
@@ -206,6 +268,21 @@ export default function Index() {
 
   return (
     <div className="container mx-auto p-4">
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        open={showUpgradeModal}
+        onOpenChange={setShowUpgradeModal}
+        remainingConversions={remainingConversions}
+        dailyLimit={dailyLimit}
+      />
+
+      {/* Usage Indicator - show in top right when paywall is enabled */}
+      {paywallEnabled && isSignedIn && (
+        <div className="flex justify-end mb-4">
+          <UsageIndicator onUpgradeClick={() => setShowUpgradeModal(true)} />
+        </div>
+      )}
+
       {errorText && (
         <Alert variant="destructive" className="mb-4">
           <div className="flex items-center justify-between">
@@ -213,12 +290,26 @@ export default function Index() {
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
               <div>
                 <AlertTitle>
-                  {isRateLimitError ? "Daily Limit Reached" : "Error"}
+                  {isPaywallLimitError
+                    ? "Daily Limit Reached"
+                    : isRateLimitError
+                      ? "Rate Limit"
+                      : "Error"}
                 </AlertTitle>
                 <AlertDescription>{errorText}</AlertDescription>
               </div>
             </div>
-            {isRateLimitError && !isSignedIn && (
+            {isPaywallLimitError && isSignedIn ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowUpgradeModal(true)}
+                className="flex items-center gap-1.5"
+              >
+                <Zap className="h-3.5 w-3.5 text-yellow-500" />
+                Upgrade to Pro
+              </Button>
+            ) : isRateLimitError && !isSignedIn ? (
               <SignInButton mode="modal">
                 <Button
                   variant="outline"
@@ -232,19 +323,35 @@ export default function Index() {
                   Sign Up for Free
                 </Button>
               </SignInButton>
-            )}
+            ) : null}
           </div>
         </Alert>
       )}
 
       {isTextLong && (
         <Alert variant="destructive" className="mb-4">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            <div>
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>Text is too long</AlertDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <div>
+                <AlertTitle>Text Too Long</AlertTitle>
+                <AlertDescription>
+                  Maximum {maxInputLength.toLocaleString()} characters allowed.
+                  {!isPro && paywallEnabled && " Upgrade to Pro for 50,000 characters."}
+                </AlertDescription>
+              </div>
             </div>
+            {!isPro && paywallEnabled && isSignedIn && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowUpgradeModal(true)}
+                className="flex items-center gap-1.5"
+              >
+                <Zap className="h-3.5 w-3.5 text-yellow-500" />
+                Upgrade
+              </Button>
+            )}
           </div>
         </Alert>
       )}
