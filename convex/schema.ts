@@ -11,9 +11,16 @@ export default defineSchema({
     lastName: v.optional(v.string()),
     profileImageUrl: v.optional(v.string()),
     // Subscription related fields
-    subscriptionTier: v.optional(v.string()), // e.g., 'free', 'pro', 'enterprise'
-    subscriptionStatus: v.optional(v.string()), // e.g., 'active', 'cancelled', 'past_due'
+    subscriptionTier: v.optional(v.string()), // 'free' or 'pro'
+    subscriptionStatus: v.optional(v.string()), // 'active', 'cancelled', 'past_due'
     subscriptionPeriodEnd: v.optional(v.number()), // Unix timestamp
+    // Stripe integration
+    stripeCustomerId: v.optional(v.string()), // Stripe customer ID
+    stripeSubscriptionId: v.optional(v.string()), // Stripe subscription ID
+    stripePriceId: v.optional(v.string()), // Stripe price ID (monthly/yearly)
+    // Daily usage tracking for free tier
+    conversionsToday: v.optional(v.number()), // Number of conversions today
+    dailyResetDate: v.optional(v.string()), // Date string (YYYY-MM-DD) for daily reset
     // User status and permissions
     isBlocked: v.optional(v.boolean()), // Whether user is blocked
     isAdmin: v.optional(v.boolean()), // Whether user has admin privileges
@@ -26,7 +33,8 @@ export default defineSchema({
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_blocked", ["isBlocked"])
-    .index("by_admin", ["isAdmin"]),
+    .index("by_admin", ["isAdmin"])
+    .index("by_stripe_customer", ["stripeCustomerId"]),
 
   // Track anonymous user sessions and their daily usage
   anonymousSessions: defineTable({

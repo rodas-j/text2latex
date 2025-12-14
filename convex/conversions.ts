@@ -8,6 +8,37 @@ import { RateLimiter, MINUTE, HOUR } from "@convex-dev/rate-limiter";
 // Define time constants
 const DAY = 24 * HOUR;
 
+// Subscription tier limits
+const TIER_LIMITS = {
+  anonymous: {
+    dailyConversions: 5,
+    maxInputLength: 5000,
+  },
+  free: {
+    dailyConversions: 30,
+    maxInputLength: 5000,
+  },
+  pro: {
+    dailyConversions: Infinity, // Unlimited
+    maxInputLength: 50000, // 10x the free limit
+  },
+};
+
+// Helper function to check if user has pro subscription
+function isProUser(user: {
+  subscriptionTier?: string;
+  subscriptionStatus?: string;
+  subscriptionPeriodEnd?: number;
+}): boolean {
+  if (user.subscriptionTier !== "pro") return false;
+  if (user.subscriptionStatus !== "active") return false;
+  // Check if subscription hasn't expired
+  if (user.subscriptionPeriodEnd && user.subscriptionPeriodEnd < Date.now()) {
+    return false;
+  }
+  return true;
+}
+
 // Rate limiter configuration
 const rateLimiter = new RateLimiter(components.rateLimiter, {
   // Anonymous user limits (daily)
@@ -259,12 +290,91 @@ export const saveAnonymousConversion = internalMutation({
   },
 });
 
+// Get user info with subscription and usage data
+export const getUserSubscriptionInfo = internalMutation({
+  args: {
+    clerkId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) {
+      return null;
+    }
+
+    const today = getTodayDateString();
+    const isPro = isProUser(user);
+
+    // Reset daily count if it's a new day
+    if (user.dailyResetDate !== today) {
+      await ctx.db.patch(user._id, {
+        conversionsToday: 0,
+        dailyResetDate: today,
+      });
+      return {
+        isPro,
+        conversionsToday: 0,
+        dailyLimit: isPro ? TIER_LIMITS.pro.dailyConversions : TIER_LIMITS.free.dailyConversions,
+        maxInputLength: isPro ? TIER_LIMITS.pro.maxInputLength : TIER_LIMITS.free.maxInputLength,
+        subscriptionTier: user.subscriptionTier || "free",
+        subscriptionStatus: user.subscriptionStatus,
+        subscriptionPeriodEnd: user.subscriptionPeriodEnd,
+      };
+    }
+
+    return {
+      isPro,
+      conversionsToday: user.conversionsToday || 0,
+      dailyLimit: isPro ? TIER_LIMITS.pro.dailyConversions : TIER_LIMITS.free.dailyConversions,
+      maxInputLength: isPro ? TIER_LIMITS.pro.maxInputLength : TIER_LIMITS.free.maxInputLength,
+      subscriptionTier: user.subscriptionTier || "free",
+      subscriptionStatus: user.subscriptionStatus,
+      subscriptionPeriodEnd: user.subscriptionPeriodEnd,
+    };
+  },
+});
+
+// Increment user's daily conversion count
+export const incrementUserConversionCount = internalMutation({
+  args: {
+    clerkId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) {
+      return;
+    }
+
+    const today = getTodayDateString();
+
+    // Reset if new day, otherwise increment
+    if (user.dailyResetDate !== today) {
+      await ctx.db.patch(user._id, {
+        conversionsToday: 1,
+        dailyResetDate: today,
+      });
+    } else {
+      await ctx.db.patch(user._id, {
+        conversionsToday: (user.conversionsToday || 0) + 1,
+      });
+    }
+  },
+});
+
 // Convert text to LaTeX using Gemini API (supports both anonymous and authenticated users)
 export const convertToLatex = action({
   args: {
     text: v.string(),
     sessionId: v.optional(v.string()), // For anonymous users
     ipAddress: v.optional(v.string()), // For additional tracking
+    paywallEnabled: v.optional(v.boolean()), // Whether paywall is enabled (from PostHog feature flag)
   },
   handler: async (ctx, args) => {
     // Check authentication status
@@ -272,11 +382,43 @@ export const convertToLatex = action({
     const isAuthenticated = !!identity;
 
     let userId: string | undefined = undefined;
+    let userSubscriptionInfo: {
+      isPro: boolean;
+      conversionsToday: number;
+      dailyLimit: number;
+      maxInputLength: number;
+      subscriptionTier: string;
+    } | null = null;
+
+    // Default limits (for when paywall is disabled or user not found)
+    let maxInputLength = TIER_LIMITS.free.maxInputLength;
+    let remainingConversions: number | null = null;
 
     if (isAuthenticated) {
       userId = identity.subject;
 
-      // Rate limit authenticated users
+      // Get user subscription info
+      userSubscriptionInfo = await ctx.runMutation(
+        internal.conversions.getUserSubscriptionInfo,
+        { clerkId: userId }
+      );
+
+      // If paywall is enabled, enforce tier-based limits
+      if (args.paywallEnabled && userSubscriptionInfo) {
+        maxInputLength = userSubscriptionInfo.maxInputLength;
+
+        // Check daily limit for free users
+        if (!userSubscriptionInfo.isPro) {
+          if (userSubscriptionInfo.conversionsToday >= userSubscriptionInfo.dailyLimit) {
+            throw new Error(
+              `Daily limit reached. You've used ${userSubscriptionInfo.conversionsToday}/${userSubscriptionInfo.dailyLimit} conversions today. Upgrade to Pro for unlimited conversions.`
+            );
+          }
+          remainingConversions = userSubscriptionInfo.dailyLimit - userSubscriptionInfo.conversionsToday - 1;
+        }
+      }
+
+      // Rate limit authenticated users (per-minute burst protection)
       await rateLimiter.limit(ctx, "authenticatedConversions", {
         key: userId,
         throws: true,
@@ -298,6 +440,7 @@ export const convertToLatex = action({
           throws: true,
         });
       }
+      remainingConversions = TIER_LIMITS.anonymous.dailyConversions;
     }
 
     // Global rate limit for all users
@@ -310,8 +453,13 @@ export const convertToLatex = action({
       throw new Error("Input text must not be empty");
     }
 
-    if (args.text.length > 5000) {
-      throw new Error("Input text must be less than 5000 characters");
+    if (args.text.length > maxInputLength) {
+      if (userSubscriptionInfo?.isPro === false) {
+        throw new Error(
+          `Input text must be less than ${maxInputLength.toLocaleString()} characters. Upgrade to Pro for ${TIER_LIMITS.pro.maxInputLength.toLocaleString()} character limit.`
+        );
+      }
+      throw new Error(`Input text must be less than ${maxInputLength.toLocaleString()} characters`);
     }
 
     // Get environment variables
@@ -417,17 +565,77 @@ export const convertToLatex = action({
         }
       }
 
+      // Increment usage count for authenticated free users when paywall is enabled
+      if (isAuthenticated && args.paywallEnabled && userSubscriptionInfo && !userSubscriptionInfo.isPro) {
+        await ctx.runMutation(internal.conversions.incrementUserConversionCount, {
+          clerkId: userId!,
+        });
+      }
+
       // Return both the latex and the conversion ID
       return {
         data: trimmedLatex,
         conversionId,
         isAuthenticated,
-        remainingFreeConversions: isAuthenticated ? null : 5,
+        remainingFreeConversions: remainingConversions,
+        isPro: userSubscriptionInfo?.isPro ?? false,
+        subscriptionTier: userSubscriptionInfo?.subscriptionTier ?? (isAuthenticated ? "free" : "anonymous"),
+        dailyLimit: userSubscriptionInfo?.dailyLimit ?? (isAuthenticated ? TIER_LIMITS.free.dailyConversions : TIER_LIMITS.anonymous.dailyConversions),
+        maxInputLength,
       };
     } catch (error) {
       throw new Error(
         error instanceof Error ? error.message : "Failed to generate LaTeX"
       );
     }
+  },
+});
+
+// Query to get user's current usage and subscription info (for UI display)
+export const getUserUsageInfo = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return {
+        isAuthenticated: false,
+        tier: "anonymous",
+        dailyLimit: TIER_LIMITS.anonymous.dailyConversions,
+        conversionsToday: null,
+        maxInputLength: TIER_LIMITS.anonymous.maxInputLength,
+        isPro: false,
+      };
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) {
+      return {
+        isAuthenticated: true,
+        tier: "free",
+        dailyLimit: TIER_LIMITS.free.dailyConversions,
+        conversionsToday: 0,
+        maxInputLength: TIER_LIMITS.free.maxInputLength,
+        isPro: false,
+      };
+    }
+
+    const isPro = isProUser(user);
+    const today = getTodayDateString();
+    const conversionsToday = user.dailyResetDate === today ? (user.conversionsToday || 0) : 0;
+
+    return {
+      isAuthenticated: true,
+      tier: isPro ? "pro" : "free",
+      dailyLimit: isPro ? TIER_LIMITS.pro.dailyConversions : TIER_LIMITS.free.dailyConversions,
+      conversionsToday,
+      maxInputLength: isPro ? TIER_LIMITS.pro.maxInputLength : TIER_LIMITS.free.maxInputLength,
+      isPro,
+      subscriptionStatus: user.subscriptionStatus,
+      subscriptionPeriodEnd: user.subscriptionPeriodEnd,
+    };
   },
 });
