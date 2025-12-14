@@ -13,6 +13,7 @@ import type * as clerk from "../clerk.js";
 import type * as conversions from "../conversions.js";
 import type * as emergency_admin from "../emergency_admin.js";
 import type * as http from "../http.js";
+import type * as stripe from "../stripe.js";
 
 import type {
   ApiFromModules,
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   conversions: typeof conversions;
   emergency_admin: typeof emergency_admin;
   http: typeof http;
+  stripe: typeof stripe;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
 

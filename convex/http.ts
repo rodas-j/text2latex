@@ -92,7 +92,7 @@ http.route({
     }
 
     const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-04-30.basil",
+      apiVersion: "2025-02-24.acacia",
     });
 
     const body = await request.text();
