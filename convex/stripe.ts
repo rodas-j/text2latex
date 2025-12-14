@@ -37,11 +37,29 @@ export const createCheckoutSession = action({
     const stripe = getStripe();
     const userId = identity.subject;
 
-    // Get or create Stripe customer
-    let customerId = await ctx.runMutation(internal.stripe.getOrCreateStripeCustomer, {
+    // Get existing customer ID from database
+    const dbResult = await ctx.runMutation(internal.stripe.getStripeCustomerFromDb, {
       clerkId: userId,
-      email: identity.email!,
     });
+
+    let customerId = dbResult.customerId;
+
+    // Create Stripe customer if doesn't exist
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: identity.email!,
+        metadata: {
+          clerkId: userId,
+        },
+      });
+      customerId = customer.id;
+
+      // Save customer ID to database
+      await ctx.runMutation(internal.stripe.saveStripeCustomerId, {
+        clerkId: userId,
+        stripeCustomerId: customerId,
+      });
+    }
 
     const priceId = args.priceType === "monthly"
       ? STRIPE_PRICES.monthly
@@ -88,17 +106,17 @@ export const createPortalSession = action({
     const stripe = getStripe();
     const userId = identity.subject;
 
-    // Get user's Stripe customer ID
-    const customerId = await ctx.runMutation(internal.stripe.getStripeCustomerId, {
+    // Get user's Stripe customer ID from database
+    const dbResult = await ctx.runMutation(internal.stripe.getStripeCustomerFromDb, {
       clerkId: userId,
     });
 
-    if (!customerId) {
+    if (!dbResult.customerId) {
       throw new Error("No subscription found");
     }
 
     const session = await stripe.billingPortal.sessions.create({
-      customer: customerId,
+      customer: dbResult.customerId,
       return_url: args.returnUrl,
     });
 
@@ -106,11 +124,10 @@ export const createPortalSession = action({
   },
 });
 
-// Internal mutation to get or create Stripe customer
-export const getOrCreateStripeCustomer = internalMutation({
+// Internal mutation to get existing Stripe customer ID
+export const getStripeCustomerFromDb = internalMutation({
   args: {
     clerkId: v.string(),
-    email: v.string(),
   },
   handler: async (ctx, args) => {
     const user = await ctx.db
@@ -122,26 +139,32 @@ export const getOrCreateStripeCustomer = internalMutation({
       throw new Error("User not found");
     }
 
-    // Return existing customer ID if present
-    if (user.stripeCustomerId) {
-      return user.stripeCustomerId;
+    return {
+      customerId: user.stripeCustomerId || null,
+      oderId: user._id,
+    };
+  },
+});
+
+// Internal mutation to save Stripe customer ID
+export const saveStripeCustomerId = internalMutation({
+  args: {
+    clerkId: v.string(),
+    stripeCustomerId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) {
+      throw new Error("User not found");
     }
 
-    // Create new Stripe customer
-    const stripe = getStripe();
-    const customer = await stripe.customers.create({
-      email: args.email,
-      metadata: {
-        clerkId: args.clerkId,
-      },
-    });
-
-    // Save customer ID to user
     await ctx.db.patch(user._id, {
-      stripeCustomerId: customer.id,
+      stripeCustomerId: args.stripeCustomerId,
     });
-
-    return customer.id;
   },
 });
 
