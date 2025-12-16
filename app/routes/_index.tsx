@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Header } from "~/components/Header";
 import { InputSection } from "~/components/InputSection";
 import { OutputSection } from "~/components/OutputSection";
-import { BottomActions } from "~/components/BottomActions";
 import { TabsComponent } from "~/components/TabsComponent";
 import { AlertCircle, Zap } from "lucide-react";
 import { useAnalytics } from "~/hooks/useAnalytics";
@@ -258,14 +257,6 @@ export default function Index() {
     setTimeout(() => setSkipAutoTranslate(false), 100);
   };
 
-  const handleExternalLinkClick = (url: string, linkText: string) => {
-    track("external_link_clicked", {
-      url,
-      link_text: linkText,
-      location: "promotional_section",
-    });
-  };
-
   return (
     <div className="container mx-auto p-4">
       {/* Upgrade Modal */}
@@ -380,42 +371,6 @@ export default function Index() {
       <div className="flex justify-center items-center mt-6 gap-4">
         <ConversionDrawer onSelect={handleHistorySelect} />
       </div>
-
-      {/* Promotional Section */}
-      <div className="mt-16 mb-8 ">
-        <h2 className="text-2xl font-bold text-center mb-8">
-          We launched a new game and would love your feedback!
-        </h2>
-        <div className="flex justify-center">
-          {/* Guessipe */}
-          <a
-            href="https://www.guessipe.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col items-center hover:opacity-90 transition-opacity"
-            onClick={() =>
-              handleExternalLinkClick(
-                "https://www.guessipe.app/",
-                "Word Canvas"
-              )
-            }
-          >
-            <div className="w-64 h-64 relative mb-4">
-              <img
-                src="/guessipe-logo-market.jpg"
-                alt="Guessipe"
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <h3 className="text-xl font-semibold text-center">Guessipe</h3>
-            <p className="text-center text-gray-700 dark:text-gray-300 mt-2">
-              Guess the ingredients of classic recipes!
-            </p>
-          </a>
-        </div>
-      </div>
-
-      {/* <BottomActions /> */}
     </div>
   );
 }
