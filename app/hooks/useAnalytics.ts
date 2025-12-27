@@ -23,7 +23,34 @@ export type AnalyticsEvent = {
       | "api_error"
       | "network_error"
       | "rate_limit"
+      | "paywall_limit"
       | "unknown";
+  };
+
+  // Paywall events
+  limit_reached: {
+    user_tier: "pro" | "free" | "anonymous";
+    conversions_today: number;
+    daily_limit: number;
+    is_authenticated: boolean;
+    input_length: number;
+  };
+  upgrade_modal_shown: {
+    source: "limit_reached" | "header" | "usage_indicator" | "billing_page";
+    remaining_conversions?: number;
+  };
+  upgrade_started: {
+    plan: "monthly" | "yearly";
+    source: string;
+  };
+  upgrade_completed: {
+    source: string;
+  };
+  upgrade_cancelled: {
+    source: string;
+  };
+  manage_subscription_clicked: {
+    source: string;
   };
 
   // User interaction events

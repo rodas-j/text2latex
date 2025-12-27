@@ -189,6 +189,15 @@ export default function Index() {
         setIsPaywallLimitError(true);
         setShowUpgradeModal(true);
 
+        // Track specific limit_reached event for conversion analysis
+        track("limit_reached", {
+          user_tier: isPro ? "pro" : isAuthenticated ? "free" : "anonymous",
+          conversions_today: dailyLimit - remainingConversions,
+          daily_limit: dailyLimit,
+          is_authenticated: isAuthenticated,
+          input_length: text.length,
+        });
+
         track("conversion_failed", {
           input_length: text.length,
           error_message: errorMessage,
