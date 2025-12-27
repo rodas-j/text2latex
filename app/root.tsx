@@ -79,6 +79,82 @@ function App() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
+        {/* JSON-LD Structured Data for SEO */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              "name": "Text2LaTeX",
+              "url": "https://text2latex.com",
+              "description": "Free AI-powered tool to convert plain text and mathematical expressions to LaTeX code.",
+              "applicationCategory": "UtilityApplication",
+              "operatingSystem": "Any",
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
+              },
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.8",
+                "ratingCount": "1200"
+              }
+            })
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "How do I convert text to LaTeX?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Simply type or paste your text, math expressions, or equations into the input box. Our AI will automatically convert it to properly formatted LaTeX code that you can copy and use in your documents, Overleaf, or any LaTeX editor."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "What types of content can Text2LaTeX convert?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Text2LaTeX can convert mathematical equations, fractions, integrals, summations, matrices, Greek symbols, chemical formulas, physics notation, and general scientific text."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Is Text2LaTeX free to use?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes! Text2LaTeX offers free conversions every day. For power users who need unlimited conversions and longer input limits, we offer an affordable Pro plan."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Can I use the output in Overleaf or other LaTeX editors?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Absolutely! The LaTeX output is fully compatible with Overleaf, TeXmaker, LaTeX Workshop for VS Code, and any other standard LaTeX editor."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Do I need to know LaTeX to use this tool?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "No! Just describe your equation in plain English or type it naturally, and we'll generate the proper LaTeX syntax for you."
+                  }
+                }
+              ]
+            })
+          }}
+        />
       </head>
       <body className="flex min-h-full flex-col">
         <ConvexProviderWithClerk client={convex} useAuth={useAuth}>

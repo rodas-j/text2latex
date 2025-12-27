@@ -20,12 +20,24 @@ import { UsageIndicator } from "~/components/UsageIndicator";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Text2Latex" },
+    { title: "Text to LaTeX Converter - Free AI-Powered LaTeX Generator | Text2LaTeX" },
     {
       name: "description",
       content:
-        "Text2Latex is an AI-powered tool that transcribes normal text, code and natural language to LaTeX.",
+        "Convert text to LaTeX instantly with our free AI-powered converter. Perfect for math equations, scientific notation, and academic papers. No LaTeX knowledge required.",
     },
+    // Open Graph
+    { property: "og:title", content: "Text to LaTeX Converter - Free AI Tool" },
+    { property: "og:description", content: "Convert plain text to LaTeX equations instantly. Perfect for students, researchers, and academics." },
+    { property: "og:type", content: "website" },
+    { property: "og:url", content: "https://text2latex.com" },
+    // Twitter Card
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: "Text to LaTeX Converter" },
+    { name: "twitter:description", content: "AI-powered LaTeX conversion for math equations and scientific notation." },
+    // SEO
+    { name: "keywords", content: "text to latex, latex converter, math to latex, equation generator, latex equation editor, ai latex, convert text to latex" },
+    { name: "robots", content: "index, follow" },
   ];
 };
 
@@ -380,6 +392,71 @@ export default function Index() {
       <div className="flex justify-center items-center mt-6 gap-4">
         <ConversionDrawer onSelect={handleHistorySelect} />
       </div>
+
+      {/* FAQ Section for SEO */}
+      <section className="mt-16 mb-8 max-w-3xl mx-auto">
+        <h2 className="text-2xl font-bold text-center mb-6">Frequently Asked Questions</h2>
+        <div className="space-y-3">
+          <details className="group border rounded-lg">
+            <summary className="flex justify-between items-center cursor-pointer p-4 font-medium">
+              How do I convert text to LaTeX?
+              <span className="transition group-open:rotate-180">▼</span>
+            </summary>
+            <p className="px-4 pb-4 text-muted-foreground">
+              Simply type or paste your text, math expressions, or equations into the input box.
+              Our AI will automatically convert it to properly formatted LaTeX code that you can
+              copy and use in your documents, Overleaf, or any LaTeX editor.
+            </p>
+          </details>
+
+          <details className="group border rounded-lg">
+            <summary className="flex justify-between items-center cursor-pointer p-4 font-medium">
+              What types of content can Text2LaTeX convert?
+              <span className="transition group-open:rotate-180">▼</span>
+            </summary>
+            <p className="px-4 pb-4 text-muted-foreground">
+              Text2LaTeX can convert mathematical equations, fractions, integrals, summations,
+              matrices, Greek symbols, chemical formulas, physics notation, and general scientific
+              text. It handles both simple expressions like "x squared" and complex multi-line equations.
+            </p>
+          </details>
+
+          <details className="group border rounded-lg">
+            <summary className="flex justify-between items-center cursor-pointer p-4 font-medium">
+              Is Text2LaTeX free to use?
+              <span className="transition group-open:rotate-180">▼</span>
+            </summary>
+            <p className="px-4 pb-4 text-muted-foreground">
+              Yes! Text2LaTeX offers free conversions every day. For power users who need unlimited
+              conversions and longer input limits, we offer an affordable Pro plan.
+            </p>
+          </details>
+
+          <details className="group border rounded-lg">
+            <summary className="flex justify-between items-center cursor-pointer p-4 font-medium">
+              Can I use the output in Overleaf or other LaTeX editors?
+              <span className="transition group-open:rotate-180">▼</span>
+            </summary>
+            <p className="px-4 pb-4 text-muted-foreground">
+              Absolutely! The LaTeX output is fully compatible with Overleaf, TeXmaker, LaTeX Workshop
+              for VS Code, and any other standard LaTeX editor. Just copy the output and paste it into
+              your document.
+            </p>
+          </details>
+
+          <details className="group border rounded-lg">
+            <summary className="flex justify-between items-center cursor-pointer p-4 font-medium">
+              Do I need to know LaTeX to use this tool?
+              <span className="transition group-open:rotate-180">▼</span>
+            </summary>
+            <p className="px-4 pb-4 text-muted-foreground">
+              No! That's the whole point. Just describe your equation in plain English or type it
+              naturally (like "integral from 0 to infinity of e to the negative x squared dx"),
+              and we'll generate the proper LaTeX syntax for you.
+            </p>
+          </details>
+        </div>
+      </section>
     </div>
   );
 }
