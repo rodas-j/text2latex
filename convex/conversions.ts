@@ -5,6 +5,78 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { internal, components } from "./_generated/api";
 import { RateLimiter, MINUTE, HOUR } from "@convex-dev/rate-limiter";
 
+// Gemini pricing per 1M tokens (as of Dec 2024)
+// https://ai.google.dev/pricing
+const GEMINI_PRICING = {
+  "gemini-2.0-flash-lite-preview-02-05": {
+    inputPer1M: 0.0, // Free during preview
+    outputPer1M: 0.0,
+  },
+  "gemini-2.0-flash": {
+    inputPer1M: 0.10,
+    outputPer1M: 0.40,
+  },
+};
+
+// Helper function to send LLM analytics to PostHog
+async function trackLLMUsage(params: {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  latencyMs: number;
+  userId?: string;
+  sessionId?: string;
+  isAuthenticated: boolean;
+  userTier: string;
+  success: boolean;
+  inputLength: number;
+  outputLength: number;
+}) {
+  const posthogApiKey = process.env.POSTHOG_API_KEY;
+  if (!posthogApiKey) {
+    console.warn("POSTHOG_API_KEY not configured, skipping LLM tracking");
+    return;
+  }
+
+  const pricing = GEMINI_PRICING[params.model as keyof typeof GEMINI_PRICING] || { inputPer1M: 0, outputPer1M: 0 };
+  const inputCost = (params.inputTokens / 1_000_000) * pricing.inputPer1M;
+  const outputCost = (params.outputTokens / 1_000_000) * pricing.outputPer1M;
+  const totalCost = inputCost + outputCost;
+
+  const distinctId = params.userId || params.sessionId || "anonymous";
+
+  try {
+    await fetch("https://us.i.posthog.com/capture/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        api_key: posthogApiKey,
+        event: "$ai_generation",
+        distinct_id: distinctId,
+        properties: {
+          $ai_model: params.model,
+          $ai_provider: "google",
+          $ai_input_tokens: params.inputTokens,
+          $ai_output_tokens: params.outputTokens,
+          $ai_latency: params.latencyMs / 1000, // PostHog expects seconds
+          $ai_total_cost_usd: totalCost,
+          // Custom properties for our analysis
+          user_tier: params.userTier,
+          is_authenticated: params.isAuthenticated,
+          input_length: params.inputLength,
+          output_length: params.outputLength,
+          success: params.success,
+        },
+        timestamp: new Date().toISOString(),
+      }),
+    });
+  } catch (error) {
+    console.error("Failed to track LLM usage:", error);
+  }
+}
+
 // Define time constants
 const DAY = 24 * HOUR;
 
@@ -468,11 +540,15 @@ export const convertToLatex = action({
       throw new Error("GEMINI_API_KEY not configured");
     }
 
+    // Track LLM call timing
+    const llmStartTime = Date.now();
+    const modelName = "gemini-2.0-flash-lite-preview-02-05";
+
     try {
       // Initialize Gemini
       const genAI = new GoogleGenerativeAI(geminiApiKey);
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash-lite-preview-02-05",
+        model: modelName,
         generationConfig: {
           temperature: 0.1,
         },
@@ -521,12 +597,33 @@ export const convertToLatex = action({
       const result = await model.generateContent(fullPrompt);
       const response = await result.response;
       const latex = response.text();
+      const llmLatencyMs = Date.now() - llmStartTime;
+
+      // Extract token usage from Gemini response
+      const usageMetadata = response.usageMetadata;
+      const inputTokens = usageMetadata?.promptTokenCount ?? 0;
+      const outputTokens = usageMetadata?.candidatesTokenCount ?? 0;
 
       if (!latex) {
         throw new Error("Empty response from Gemini");
       }
 
       const trimmedLatex = latex.trim();
+
+      // Track LLM usage to PostHog (non-blocking)
+      trackLLMUsage({
+        model: modelName,
+        inputTokens,
+        outputTokens,
+        latencyMs: llmLatencyMs,
+        userId,
+        sessionId: args.sessionId,
+        isAuthenticated,
+        userTier: userSubscriptionInfo?.subscriptionTier ?? (isAuthenticated ? "free" : "anonymous"),
+        success: true,
+        inputLength: args.text.length,
+        outputLength: trimmedLatex.length,
+      }).catch(() => {}); // Ignore tracking errors
 
       // Save the conversion
       let conversionId: Id<"conversions"> | null = null;
@@ -584,6 +681,22 @@ export const convertToLatex = action({
         maxInputLength,
       };
     } catch (error) {
+      // Track failed LLM call
+      const llmLatencyMs = Date.now() - llmStartTime;
+      trackLLMUsage({
+        model: modelName,
+        inputTokens: 0,
+        outputTokens: 0,
+        latencyMs: llmLatencyMs,
+        userId,
+        sessionId: args.sessionId,
+        isAuthenticated,
+        userTier: userSubscriptionInfo?.subscriptionTier ?? (isAuthenticated ? "free" : "anonymous"),
+        success: false,
+        inputLength: args.text.length,
+        outputLength: 0,
+      }).catch(() => {});
+
       throw new Error(
         error instanceof Error ? error.message : "Failed to generate LaTeX"
       );
