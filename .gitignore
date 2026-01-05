@@ -7,3 +7,5 @@ wrangler.toml
 .dev.vars
 .wrangler/
 .env.local
+.vercel
+.env*.local

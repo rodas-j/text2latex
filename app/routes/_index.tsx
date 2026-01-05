@@ -218,7 +218,7 @@ export default function Index() {
       } else if (isRateLimit || !isSignedIn) {
         const friendlyMessage = isSignedIn
           ? "You're making requests too quickly. Please wait a moment and try again."
-          : "You've reached your daily limit of 5 free conversions. Sign up to get unlimited conversions!";
+          : "You've reached your daily limit of 5 free conversions. Sign up to get more conversions!";
         setErrorText(friendlyMessage);
         setIsRateLimitError(true);
 
@@ -427,7 +427,7 @@ export default function Index() {
               <span className="transition group-open:rotate-180">▼</span>
             </summary>
             <p className="px-4 pb-4 text-muted-foreground">
-              Yes! Text2LaTeX offers free conversions every day. For power users who need unlimited
+              Yes! Text2LaTeX offers free conversions every day. For power users who need more
               conversions and longer input limits, we offer an affordable Pro plan.
             </p>
           </details>

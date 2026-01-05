@@ -132,7 +132,7 @@ function App() {
                   "name": "Is Text2LaTeX free to use?",
                   "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "Yes! Text2LaTeX offers free conversions every day. For power users who need unlimited conversions and longer input limits, we offer an affordable Pro plan."
+                    "text": "Yes! Text2LaTeX offers free conversions every day. For power users who need more conversions and longer input limits, we offer an affordable Pro plan."
                   }
                 },
                 {

@@ -91,7 +91,7 @@ const TIER_LIMITS = {
     maxInputLength: 5000,
   },
   pro: {
-    dailyConversions: Infinity, // Unlimited
+    dailyConversions: Infinity, // High limit
     maxInputLength: 50000, // 10x the free limit
   },
 };
@@ -483,7 +483,7 @@ export const convertToLatex = action({
         if (!userSubscriptionInfo.isPro) {
           if (userSubscriptionInfo.conversionsToday >= userSubscriptionInfo.dailyLimit) {
             throw new Error(
-              `Daily limit reached. You've used ${userSubscriptionInfo.conversionsToday}/${userSubscriptionInfo.dailyLimit} conversions today. Upgrade to Pro for unlimited conversions.`
+              `Daily limit reached. You've used ${userSubscriptionInfo.conversionsToday}/${userSubscriptionInfo.dailyLimit} conversions today. Upgrade to Pro for more conversions.`
             );
           }
           remainingConversions = userSubscriptionInfo.dailyLimit - userSubscriptionInfo.conversionsToday - 1;

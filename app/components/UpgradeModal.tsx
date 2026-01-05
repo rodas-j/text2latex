@@ -33,7 +33,7 @@ const PRICING = {
 };
 
 const FEATURES = [
-  "Unlimited daily conversions",
+  "More daily conversions",
   "50,000 character input limit (10x free)",
   "Priority support",
   "Early access to new features",
@@ -90,10 +90,10 @@ export function UpgradeModal({
             {remainingConversions !== undefined && dailyLimit !== undefined ? (
               <>
                 You've used {dailyLimit - remainingConversions} of {dailyLimit} free
-                conversions today. Upgrade for unlimited access.
+                conversions today. Upgrade for more access.
               </>
             ) : (
-              "Get unlimited conversions and more with Pro."
+              "Get more conversions and higher limits with Pro."
             )}
           </DialogDescription>
         </DialogHeader>

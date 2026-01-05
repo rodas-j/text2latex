@@ -30,7 +30,7 @@ const PRICING = {
 };
 
 const FEATURES = [
-  "Unlimited daily conversions",
+  "More daily conversions",
   "50,000 character input limit (10x free)",
   "Priority support",
   "Early access to new features",
@@ -144,7 +144,7 @@ export default function BillingSettings() {
               <div>
                 <p className="font-semibold text-lg">Pro Plan</p>
                 <p className="text-sm text-muted-foreground">
-                  Unlimited conversions, 50,000 character limit
+                  More conversions, 50,000 character limit
                 </p>
               </div>
             </div>
