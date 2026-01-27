@@ -8,9 +8,9 @@ import { RateLimiter, MINUTE, HOUR } from "@convex-dev/rate-limiter";
 // Gemini pricing per 1M tokens (as of Dec 2024)
 // https://ai.google.dev/pricing
 const GEMINI_PRICING = {
-  "gemini-2.0-flash-lite-preview-02-05": {
-    inputPer1M: 0.0, // Free during preview
-    outputPer1M: 0.0,
+  "gemini-flash-latest": {
+    inputPer1M: 0.10,
+    outputPer1M: 0.40,
   },
   "gemini-2.0-flash": {
     inputPer1M: 0.10,
@@ -542,7 +542,7 @@ export const convertToLatex = action({
 
     // Track LLM call timing
     const llmStartTime = Date.now();
-    const modelName = "gemini-2.0-flash-lite-preview-02-05";
+    const modelName = "gemini-flash-latest";
 
     try {
       // Initialize Gemini
