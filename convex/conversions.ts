@@ -83,16 +83,16 @@ const DAY = 24 * HOUR;
 // Subscription tier limits
 const TIER_LIMITS = {
   anonymous: {
-    dailyConversions: 5,
-    maxInputLength: 5000,
+    dailyConversions: 10,
+    maxInputLength: 10000,
   },
   free: {
-    dailyConversions: 30,
-    maxInputLength: 5000,
+    dailyConversions: 60,
+    maxInputLength: 10000,
   },
   pro: {
     dailyConversions: Infinity, // High limit
-    maxInputLength: 50000, // 10x the free limit
+    maxInputLength: 100000, // 10x the free limit
   },
 };
 
@@ -116,35 +116,35 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
   // Anonymous user limits (daily)
   anonymousConversions: {
     kind: "fixed window",
-    rate: 5,
+    rate: 10,
     period: DAY,
-    capacity: 5,
+    capacity: 10,
   },
 
   // Authenticated user limits (per minute)
   saveConversion: {
     kind: "token bucket",
+    rate: 40,
+    period: MINUTE,
+    capacity: 60,
+  },
+  toggleFavorite: {
+    kind: "token bucket",
     rate: 20,
     period: MINUTE,
     capacity: 30,
   },
-  toggleFavorite: {
-    kind: "token bucket",
-    rate: 10,
-    period: MINUTE,
-    capacity: 15,
-  },
   authenticatedConversions: {
     kind: "token bucket",
-    rate: 10,
+    rate: 20,
     period: MINUTE,
-    capacity: 15,
+    capacity: 30,
   },
 
   // Global rate limits for expensive operations
   globalConversion: {
     kind: "fixed window",
-    rate: 200,
+    rate: 400,
     period: MINUTE,
     shards: 5,
   },
