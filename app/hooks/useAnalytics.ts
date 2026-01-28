@@ -107,6 +107,12 @@ export type AnalyticsEvent = {
   };
   auth_sign_out: {};
 
+  // Tool affiliate clicks
+  tool_clicked: {
+    tool_name: string;
+    url: string;
+  };
+
   // Feature usage
   star_clicked: {
     conversion_id?: string;

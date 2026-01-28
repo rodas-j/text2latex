@@ -368,7 +368,19 @@ export default function Index() {
         </Alert>
       )}
 
-      <TabsComponent />
+      <TabsComponent
+        onToolClick={(toolName) => {
+          track("tool_clicked", {
+            tool_name: toolName,
+            url: "https://jenni.ai/?via=text2latex",
+          });
+          track("external_link_clicked", {
+            url: "https://jenni.ai/?via=text2latex",
+            link_text: toolName,
+            location: "tools_tab",
+          });
+        }}
+      />
       <div className="grid md:grid-cols-2 gap-6">
         <InputSection
           text={text}
