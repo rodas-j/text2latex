@@ -1,5 +1,11 @@
 import { v } from "convex/values";
-import { mutation, query, action, internalMutation } from "./_generated/server";
+import {
+  mutation,
+  query,
+  action,
+  internalMutation,
+  internalQuery,
+} from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { internal, components } from "./_generated/api";
@@ -96,6 +102,49 @@ const TIER_LIMITS = {
   },
 };
 
+const FILE_TOOL_LIMITS = {
+  "image-to-latex": {
+    anonymousDaily: 5,
+    authenticatedDaily: 5,
+  },
+  "pdf-to-latex": {
+    anonymousDaily: 3,
+    authenticatedDaily: 3,
+  },
+  "latex-to-image": {
+    anonymousDaily: 10,
+    authenticatedDaily: 10,
+  },
+  "latex-to-word": {
+    anonymousDaily: 0,
+    authenticatedDaily: 0,
+  },
+} as const;
+
+const DOCX_MIME_TYPE =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+
+const fileToolValidator = v.union(
+  v.literal("latex-to-word"),
+  v.literal("image-to-latex"),
+  v.literal("pdf-to-latex"),
+  v.literal("latex-to-image")
+);
+
+const fileConversionStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("processing"),
+  v.literal("success"),
+  v.literal("failed")
+);
+
+type FileTool =
+  | "latex-to-word"
+  | "image-to-latex"
+  | "pdf-to-latex"
+  | "latex-to-image";
+
 // Helper function to check if user has pro subscription
 function isProUser(user: {
   subscriptionTier?: string;
@@ -140,6 +189,24 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     capacity: 30,
   },
+  authenticatedFileConversions: {
+    kind: "token bucket",
+    rate: 10,
+    period: MINUTE,
+    capacity: 15,
+  },
+  anonymousFileConversions: {
+    kind: "token bucket",
+    rate: 5,
+    period: MINUTE,
+    capacity: 8,
+  },
+  uploadUrlGeneration: {
+    kind: "token bucket",
+    rate: 30,
+    period: MINUTE,
+    capacity: 40,
+  },
 
   // Global rate limits for expensive operations
   globalConversion: {
@@ -148,11 +215,56 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: MINUTE,
     shards: 5,
   },
+  globalFileConversion: {
+    kind: "fixed window",
+    rate: 150,
+    period: MINUTE,
+    shards: 5,
+  },
 });
 
 // Helper function to get today's date string
 function getTodayDateString(): string {
   return new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+}
+
+function getUtcDayStartTimestamp(): number {
+  const now = new Date();
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+}
+
+function getToolDailyLimit(
+  tool: FileTool,
+  isPro: boolean,
+  isAuthenticated: boolean
+): number {
+  if (isPro) return Infinity;
+  return isAuthenticated
+    ? FILE_TOOL_LIMITS[tool].authenticatedDaily
+    : FILE_TOOL_LIMITS[tool].anonymousDaily;
+}
+
+function calculateGeminiCost(
+  model: string,
+  inputTokens: number,
+  outputTokens: number
+): number {
+  const pricing = GEMINI_PRICING[model as keyof typeof GEMINI_PRICING];
+  if (!pricing) return 0;
+  const inputCost = (inputTokens / 1_000_000) * pricing.inputPer1M;
+  const outputCost = (outputTokens / 1_000_000) * pricing.outputPer1M;
+  return inputCost + outputCost;
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
 }
 
 // Save a new conversion to history
@@ -182,6 +294,34 @@ export const saveConversion = mutation({
       isAnonymous: false, // This is an authenticated user conversion
       createdAt: Date.now(),
     });
+  },
+});
+
+// Generate upload URL for direct file uploads to Convex storage
+export const generateUploadUrl = mutation({
+  args: {
+    sessionId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const key = identity?.subject || args.sessionId || "anonymous-upload";
+
+    await rateLimiter.limit(ctx, "uploadUrlGeneration", {
+      key,
+      throws: true,
+    });
+
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// Resolve a temporary download URL for a storage file
+export const getFileDownloadUrl = query({
+  args: {
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.storage.getUrl(args.storageId);
   },
 });
 
@@ -437,6 +577,116 @@ export const incrementUserConversionCount = internalMutation({
         conversionsToday: (user.conversionsToday || 0) + 1,
       });
     }
+  },
+});
+
+export const getToolUsageCount = internalQuery({
+  args: {
+    userId: v.optional(v.string()),
+    sessionId: v.optional(v.string()),
+    tool: fileToolValidator,
+    dayStart: v.number(),
+  },
+  handler: async (ctx, args) => {
+    if (args.userId) {
+      const items = await ctx.db
+        .query("fileConversions")
+        .withIndex("by_user_tool_created", (q) =>
+          q
+            .eq("userId", args.userId)
+            .eq("tool", args.tool)
+            .gte("createdAt", args.dayStart)
+        )
+        .collect();
+      return items.length;
+    }
+
+    if (args.sessionId) {
+      const items = await ctx.db
+        .query("fileConversions")
+        .withIndex("by_session_tool_created", (q) =>
+          q
+            .eq("sessionId", args.sessionId)
+            .eq("tool", args.tool)
+            .gte("createdAt", args.dayStart)
+        )
+        .collect();
+      return items.length;
+    }
+
+    return 0;
+  },
+});
+
+export const createFileConversion = internalMutation({
+  args: {
+    userId: v.optional(v.string()),
+    sessionId: v.optional(v.string()),
+    tool: fileToolValidator,
+    inputStorageId: v.optional(v.id("_storage")),
+    inputText: v.optional(v.string()),
+    status: fileConversionStatusValidator,
+    idempotencyKey: v.optional(v.string()),
+    converterVersion: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("fileConversions", {
+      userId: args.userId,
+      sessionId: args.sessionId,
+      tool: args.tool,
+      inputStorageId: args.inputStorageId,
+      inputText: args.inputText,
+      status: args.status,
+      idempotencyKey: args.idempotencyKey,
+      converterVersion: args.converterVersion,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const updateFileConversion = internalMutation({
+  args: {
+    conversionId: v.id("fileConversions"),
+    status: fileConversionStatusValidator,
+    outputStorageId: v.optional(v.id("_storage")),
+    outputText: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    latencyMs: v.optional(v.number()),
+    costUsd: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.conversionId, {
+      status: args.status,
+      outputStorageId: args.outputStorageId,
+      outputText: args.outputText,
+      errorMessage: args.errorMessage,
+      latencyMs: args.latencyMs,
+      costUsd: args.costUsd,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const getFileConversionHistory = query({
+  args: {
+    limit: v.optional(v.number()),
+    tool: v.optional(fileToolValidator),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const limit = Math.min(args.limit ?? 20, 50);
+    const rows = await ctx.db
+      .query("fileConversions")
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .order("desc")
+      .take(100);
+
+    const filtered = args.tool ? rows.filter((row) => row.tool === args.tool) : rows;
+    return filtered.slice(0, limit);
   },
 });
 
@@ -699,6 +949,317 @@ export const convertToLatex = action({
 
       throw new Error(
         error instanceof Error ? error.message : "Failed to generate LaTeX"
+      );
+    }
+  },
+});
+
+export const convertImageToLatex = action({
+  args: {
+    storageId: v.id("_storage"),
+    sessionId: v.optional(v.string()),
+    idempotencyKey: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const isAuthenticated = !!identity;
+    const userId = identity?.subject;
+
+    if (!isAuthenticated && !args.sessionId) {
+      throw new Error("Session ID is required for anonymous uploads");
+    }
+
+    const limiterKey = userId || args.sessionId!;
+    await rateLimiter.limit(ctx, isAuthenticated ? "authenticatedFileConversions" : "anonymousFileConversions", {
+      key: limiterKey,
+      throws: true,
+    });
+    await rateLimiter.limit(ctx, "globalFileConversion", { throws: true });
+
+    let userSubscriptionInfo:
+      | {
+          isPro: boolean;
+          conversionsToday: number;
+          dailyLimit: number;
+          maxInputLength: number;
+          subscriptionTier: string;
+        }
+      | null = null;
+
+    if (isAuthenticated && userId) {
+      userSubscriptionInfo = await ctx.runMutation(
+        internal.conversions.getUserSubscriptionInfo,
+        { clerkId: userId }
+      );
+    }
+
+    const isPro = userSubscriptionInfo?.isPro ?? false;
+    const dailyLimit = getToolDailyLimit("image-to-latex", isPro, isAuthenticated);
+
+    let usageCount = 0;
+    if (!isPro) {
+      usageCount = await ctx.runQuery(internal.conversions.getToolUsageCount, {
+        userId,
+        sessionId: args.sessionId,
+        tool: "image-to-latex",
+        dayStart: getUtcDayStartTimestamp(),
+      });
+
+      if (usageCount >= dailyLimit) {
+        throw new Error(
+          `Daily limit reached for Image to LaTeX (${dailyLimit}/day). Upgrade to Pro for unlimited usage.`
+        );
+      }
+    }
+
+    const imageBlob = await ctx.storage.get(args.storageId);
+    if (!imageBlob) {
+      throw new Error("Uploaded file not found. Please upload again.");
+    }
+
+    const mimeType = imageBlob.type || "application/octet-stream";
+    if (!mimeType.startsWith("image/")) {
+      throw new Error("Only image files are supported for Image to LaTeX.");
+    }
+
+    if (imageBlob.size > MAX_IMAGE_UPLOAD_BYTES) {
+      throw new Error("Image file is too large. Maximum file size is 10MB.");
+    }
+
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      throw new Error("GEMINI_API_KEY not configured");
+    }
+
+    const conversionId = await ctx.runMutation(internal.conversions.createFileConversion, {
+      userId,
+      sessionId: args.sessionId,
+      tool: "image-to-latex",
+      inputStorageId: args.storageId,
+      status: "processing",
+      idempotencyKey: args.idempotencyKey,
+      converterVersion: "gemini-image-v1",
+    });
+
+    const modelName = "gemini-flash-latest";
+    const llmStartTime = Date.now();
+
+    try {
+      const imageBuffer = await imageBlob.arrayBuffer();
+      const imageBase64 = arrayBufferToBase64(imageBuffer);
+
+      const genAI = new GoogleGenerativeAI(geminiApiKey);
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          temperature: 0.1,
+        },
+      });
+
+      const result = await model.generateContent([
+        {
+          text: [
+            "Transcribe the mathematical content from this image into LaTeX.",
+            "Rules:",
+            "1. Return only LaTeX output.",
+            "2. Preserve equation structure and line breaks.",
+            "3. Use standard LaTeX syntax compatible with KaTeX and Overleaf.",
+            "4. Do not include markdown fences or explanations.",
+          ].join("\n"),
+        },
+        {
+          inlineData: {
+            data: imageBase64,
+            mimeType,
+          },
+        },
+      ]);
+
+      const response = await result.response;
+      const outputText = response.text().trim();
+      if (!outputText) {
+        throw new Error("Empty response from Gemini");
+      }
+
+      const llmLatencyMs = Date.now() - llmStartTime;
+      const inputTokens = response.usageMetadata?.promptTokenCount ?? 0;
+      const outputTokens = response.usageMetadata?.candidatesTokenCount ?? 0;
+      const costUsd = calculateGeminiCost(modelName, inputTokens, outputTokens);
+
+      await ctx.runMutation(internal.conversions.updateFileConversion, {
+        conversionId,
+        status: "success",
+        outputText,
+        latencyMs: llmLatencyMs,
+        costUsd,
+      });
+
+      trackLLMUsage({
+        model: modelName,
+        inputTokens,
+        outputTokens,
+        latencyMs: llmLatencyMs,
+        userId,
+        sessionId: args.sessionId,
+        isAuthenticated,
+        userTier: userSubscriptionInfo?.subscriptionTier ?? (isAuthenticated ? "free" : "anonymous"),
+        success: true,
+        inputLength: imageBlob.size,
+        outputLength: outputText.length,
+      }).catch(() => {});
+
+      return {
+        data: outputText,
+        conversionId,
+        isAuthenticated,
+        isPro,
+        dailyLimit,
+        remainingFreeConversions:
+          dailyLimit === Infinity ? Infinity : Math.max(dailyLimit - usageCount - 1, 0),
+      };
+    } catch (error) {
+      const llmLatencyMs = Date.now() - llmStartTime;
+      await ctx.runMutation(internal.conversions.updateFileConversion, {
+        conversionId,
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : "Failed to convert image to LaTeX",
+        latencyMs: llmLatencyMs,
+      });
+
+      trackLLMUsage({
+        model: modelName,
+        inputTokens: 0,
+        outputTokens: 0,
+        latencyMs: llmLatencyMs,
+        userId,
+        sessionId: args.sessionId,
+        isAuthenticated,
+        userTier: userSubscriptionInfo?.subscriptionTier ?? (isAuthenticated ? "free" : "anonymous"),
+        success: false,
+        inputLength: imageBlob.size,
+        outputLength: 0,
+      }).catch(() => {});
+
+      throw new Error(
+        error instanceof Error ? error.message : "Failed to convert image to LaTeX"
+      );
+    }
+  },
+});
+
+export const convertLatexToWord = action({
+  args: {
+    text: v.string(),
+    idempotencyKey: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("LaTeX to Word requires an authenticated Pro account.");
+    }
+
+    const userId = identity.subject;
+    await rateLimiter.limit(ctx, "authenticatedFileConversions", {
+      key: userId,
+      throws: true,
+    });
+    await rateLimiter.limit(ctx, "globalFileConversion", { throws: true });
+
+    const userSubscriptionInfo = await ctx.runMutation(
+      internal.conversions.getUserSubscriptionInfo,
+      { clerkId: userId }
+    );
+
+    if (!userSubscriptionInfo?.isPro) {
+      throw new Error("LaTeX to Word is a Pro-only feature. Upgrade to continue.");
+    }
+
+    if (!args.text.trim()) {
+      throw new Error("Input LaTeX must not be empty");
+    }
+
+    if (args.text.length > TIER_LIMITS.pro.maxInputLength) {
+      throw new Error(
+        `Input text must be less than ${TIER_LIMITS.pro.maxInputLength.toLocaleString()} characters`
+      );
+    }
+
+    const workerUrl = process.env.LATEX_TO_WORD_WORKER_URL;
+    if (!workerUrl) {
+      throw new Error(
+        "LATEX_TO_WORD_WORKER_URL is not configured. Deploy the worker and set this env var."
+      );
+    }
+
+    const workerAuthToken = process.env.LATEX_TO_WORD_WORKER_TOKEN;
+    const conversionId = await ctx.runMutation(internal.conversions.createFileConversion, {
+      userId,
+      tool: "latex-to-word",
+      inputText: args.text,
+      status: "processing",
+      idempotencyKey: args.idempotencyKey,
+      converterVersion: "worker-latex-to-word-v1",
+    });
+
+    const conversionStartTime = Date.now();
+
+    try {
+      const response = await fetch(workerUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(workerAuthToken
+            ? {
+                Authorization: `Bearer ${workerAuthToken}`,
+              }
+            : {}),
+        },
+        body: JSON.stringify({
+          latex: args.text,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `LaTeX to Word worker failed (${response.status}): ${errorText.slice(0, 200)}`
+        );
+      }
+
+      const docxBuffer = await response.arrayBuffer();
+      if (docxBuffer.byteLength === 0) {
+        throw new Error("LaTeX to Word worker returned an empty file.");
+      }
+
+      const outputStorageId = await ctx.storage.store(
+        new Blob([docxBuffer], { type: DOCX_MIME_TYPE })
+      );
+      const downloadUrl = await ctx.storage.getUrl(outputStorageId);
+      const latencyMs = Date.now() - conversionStartTime;
+
+      await ctx.runMutation(internal.conversions.updateFileConversion, {
+        conversionId,
+        status: "success",
+        outputStorageId,
+        latencyMs,
+      });
+
+      return {
+        conversionId,
+        outputStorageId,
+        downloadUrl,
+        filename: `text2latex-${Date.now()}.docx`,
+      };
+    } catch (error) {
+      const latencyMs = Date.now() - conversionStartTime;
+      await ctx.runMutation(internal.conversions.updateFileConversion, {
+        conversionId,
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : "Failed to convert LaTeX to Word",
+        latencyMs,
+      });
+      throw new Error(
+        error instanceof Error ? error.message : "Failed to convert LaTeX to Word"
       );
     }
   },

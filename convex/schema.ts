@@ -77,6 +77,41 @@ export default defineSchema({
     .index("by_session", ["sessionId"])
     .index("by_anonymous", ["isAnonymous"]),
 
+  fileConversions: defineTable({
+    userId: v.optional(v.string()), // Reference to users.clerkId (optional for anonymous)
+    sessionId: v.optional(v.string()), // For anonymous users
+    tool: v.union(
+      v.literal("latex-to-word"),
+      v.literal("image-to-latex"),
+      v.literal("pdf-to-latex"),
+      v.literal("latex-to-image")
+    ),
+    inputStorageId: v.optional(v.id("_storage")),
+    inputText: v.optional(v.string()),
+    outputStorageId: v.optional(v.id("_storage")),
+    outputText: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("success"),
+      v.literal("failed")
+    ),
+    errorMessage: v.optional(v.string()),
+    idempotencyKey: v.optional(v.string()),
+    latencyMs: v.optional(v.number()),
+    costUsd: v.optional(v.number()),
+    converterVersion: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_session", ["sessionId"])
+    .index("by_tool", ["tool"])
+    .index("by_status", ["status"])
+    .index("by_user_tool_created", ["userId", "tool", "createdAt"])
+    .index("by_session_tool_created", ["sessionId", "tool", "createdAt"])
+    .index("by_created_at", ["createdAt"]),
+
   favorites: defineTable({
     userId: v.string(), // Reference to users.clerkId
     conversionId: v.id("conversions"), // Reference to the conversion
